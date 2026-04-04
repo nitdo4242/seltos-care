@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Seltos Care Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;700;900&display=swap');
+        body { font-family: 'Pretendard', sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        .bottom-sheet { transform: translateY(100%); transition: transform 0.3s ease-out; }
+        .bottom-sheet.active { transform: translateY(0); }
+        .overlay { opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+        .overlay.active { opacity: 1; pointer-events: auto; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .sync-spinner { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-slate-50">
+
+    <!-- 상단 헤더 -->
+    <div class="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100">
+        <div class="max-w-md mx-auto px-5 py-4 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-black text-indigo-600 italic">SELTOS CARE</h1>
+                <p id="dateDisplay" class="text-[10px] font-bold text-slate-400"></p>
+            </div>
+            <div class="flex items-center gap-3">
+                <div id="syncStatus" class="flex items-center gap-1 text-[10px] font-bold text-slate-400">
+                    <svg id="syncIcon" xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    <span id="syncText">로딩 중...</span>
+                </div>
+                <div class="flex flex-col items-end">
+                    <span class="text-[9px] font-bold text-slate-400 mb-0.5">현재 주행거리</span>
+                    <input type="number" id="currKm" value="39800" oninput="onKmChange()"
+                        class="w-24 text-right text-xl font-black bg-slate-100 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-indigo-400">
+                </div>
+            </div>
+        </div>
+
+        <!-- 탭 네비게이션 -->
+        <div class="max-w-md mx-auto flex border-t border-slate-100">
+            <button onclick="switchTab('maint')" id="tab-maint"
+                class="flex-1 py-2.5 text-xs font-black text-indigo-600 border-b-2 border-indigo-600 transition-all">
+                🔧 정비
+            </button>
+            <button onclick="switchTab('fuel')" id="tab-fuel"
+                class="flex-1 py-2.5 text-xs font-black text-slate-400 border-b-2 border-transparent transition-all">
+                ⛽ 주유
+            </button>
+            <button onclick="switchTab('stats')" id="tab-stats"
+                class="flex-1 py-2.5 text-xs font-black text-slate-400 border-b-2 border-transparent transition-all">
+                📊 통계
+            </button>
+        </div>
+    </div>
+
+    <!-- 로딩 스켈레톤 -->
+    <div id="loadingScreen" class="max-w-md mx-auto p-4 space-y-3">
+        <div class="bg-white rounded-[2rem] h-20 animate-pulse"></div>
+        <div class="bg-white rounded-[2rem] h-20 animate-pulse"></div>
+        <div class="bg-white rounded-[2rem] h-20 animate-pulse"></div>
+    </div>
+
+    <!-- ── 탭 1: 정비 ── -->
+    <div id="tab-content-maint" class="tab-content hidden max-w-md mx-auto p-4 space-y-3 pb-32">
+        <div id="maintList"></div>
+    </div>
+
+    <!-- ── 탭 2: 주유 ── -->
+    <div id="tab-content-fuel" class="tab-content hidden max-w-md mx-auto p-4 pb-32">
+        <!-- 연비 요약 카드 -->
+        <div class="bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-[2rem] p-5 mb-3 text-white shadow-lg shadow-indigo-100">
+            <div class="flex justify-between items-center">
+                <div>
+                    <p class="text-xs font-bold opacity-70">최근 평균 연비</p>
+                    <p id="avgEfficiency" class="text-4xl font-black">--</p>
+                    <p class="text-xs font-bold opacity-70">km/L</p>
+                </div>
+                <div class="text-right space-y-1">
+                    <div>
+                        <p class="text-[10px] font-bold opacity-60">이번달 주유비</p>
+                        <p id="monthFuelCost" class="text-lg font-black">--</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-bold opacity-60">총 주유 횟수</p>
+                        <p id="totalFuelCount" class="text-lg font-black">0회</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- 주유 기록 리스트 -->
+        <div id="fuelList" class="space-y-3"></div>
+        <p id="fuelEmpty" class="text-center text-slate-400 text-sm font-bold py-10 hidden">
+            아직 주유 기록이 없어요<br><span class="text-xs font-normal">+ 버튼으로 추가해보세요</span>
+        </p>
+    </div>
+
+    <!-- ── 탭 3: 통계 ── -->
+    <div id="tab-content-stats" class="tab-content hidden max-w-md mx-auto p-4 pb-32">
+        <!-- 올해 총 비용 -->
+        <div class="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100 mb-3">
+            <p class="text-xs font-black text-slate-400 uppercase mb-3">올해 지출 요약</p>
+            <div class="flex justify-between items-end">
+                <div>
+                    <p class="text-[10px] text-slate-400 font-bold">정비비</p>
+                    <p id="statMaintCost" class="text-2xl font-black text-slate-800">0원</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-[10px] text-slate-400 font-bold">주유비</p>
+                    <p id="statFuelCost" class="text-2xl font-black text-slate-800">0원</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-[10px] text-slate-400 font-bold">합계</p>
+                    <p id="statTotalCost" class="text-2xl font-black text-indigo-600">0원</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 월별 주유비 -->
+        <div class="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100 mb-3">
+            <p class="text-xs font-black text-slate-400 uppercase mb-3">월별 주유비</p>
+            <div id="monthlyFuelChart" class="space-y-2"></div>
+        </div>
+
+        <!-- 정비 이력 -->
+        <div class="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100">
+            <p class="text-xs font-black text-slate-400 uppercase mb-3">정비 이력</p>
+            <div id="maintHistory" class="space-y-2"></div>
+            <p id="maintHistoryEmpty" class="text-center text-slate-400 text-xs py-4">정비 기록이 없어요</p>
+        </div>
+    </div>
+
+    <!-- FAB 버튼 -->
+    <div class="fixed bottom-6 right-6 z-30">
+        <button onclick="openSheet()" class="w-14 h-14 bg-indigo-600 text-white rounded-full shadow-xl flex items-center justify-center text-3xl font-light hover:scale-110 active:scale-95 transition-all">
+            +
+        </button>
+    </div>
+
+    <!-- 오버레이 -->
+    <div id="overlay" onclick="closeSheet()" class="overlay fixed inset-0 bg-black/40 z-40"></div>
+
+    <!-- ── 정비 기록 바텀시트 ── -->
+    <div id="sheetMaint" class="bottom-sheet fixed bottom-0 left-0 right-0 bg-white z-50 rounded-t-[2.5rem] p-8 shadow-2xl max-w-md mx-auto">
+        <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6"></div>
+        <h2 class="text-xl font-black mb-6">정비 기록하기 🔧</h2>
+        <div class="space-y-3">
+            <div>
+                <label class="block text-xs font-bold text-slate-400 mb-1.5 uppercase">항목 선택</label>
+                <select id="inputItem" class="w-full bg-slate-100 border-none p-4 rounded-2xl text-sm font-bold outline-none"></select>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-400 mb-1.5 uppercase">정비 시점 거리 (KM)</label>
+                <input type="number" id="inputKm" placeholder="예: 39800"
+                    class="w-full bg-slate-100 border-none p-4 rounded-2xl text-lg font-black outline-none focus:ring-2 focus:ring-indigo-400">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-400 mb-1.5 uppercase">비용 (원)</label>
+                <input type="number" id="inputCost" placeholder="예: 45000"
+                    class="w-full bg-slate-100 border-none p-4 rounded-2xl text-lg font-black outline-none focus:ring-2 focus:ring-indigo-400">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-400 mb-1.5 uppercase">메모 (선택)</label>
+                <input type="text" id="inputMemo" placeholder="예: 쿠팡 오일 직구"
+                    class="w-full bg-slate-100 border-none p-4 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400">
+            </div>
+            <button id="saveMaintBtn" onclick="saveMaint()"
+                class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-lg shadow-lg shadow-indigo-100 active:scale-95 transition-all">
+                저장하기
+            </button>
+        </div>
+    </div>
+
+    <!-- ── 주유 기록 바텀시트 ── -->
+    <div id="sheetFuel" class="bottom-sheet fixed bottom-0 left-0 right-0 bg-white z-50 rounded-t-[2.5rem] p-8 shadow-2xl max-w-md mx-auto">
+        <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6"></div>
+        <h2 class="text-xl font-black mb-6">주유 기록하기 ⛽</h2>
+        <div class="space-y-3">
+            <div>
+                <label class="block text-xs font-bold text-slate-400 mb-1.5 uppercase">주유 시점 거리 (KM)</label>
+                <input type="number" id="fuelKm" placeholder="예: 40200"
+                    class="w-full bg-slate-100 border-none p-4 rounded-2xl text-lg font-black outline-none focus:ring-2 focus:ring-indigo-400">
+            </div>
+            <div class="flex gap-3">
+                <div class="flex-1">
+                    <label class="block text-xs font-bold text-slate-400 mb-1.5 uppercase">주유량 (L)</label>
+                    <input type="number" id="fuelLiters" placeholder="예: 40.5" step="0.1"
+                        class="w-full bg-slate-100 border-none p-4 rounded-2xl text-lg font-black outline-none focus:ring-2 focus:ring-indigo-400">
+                </div>
+                <div class="flex-1">
+                    <label class="block text-xs font-bold text-slate-400 mb-1.5 uppercase">총 금액 (원)</label>
+                    <input type="number" id="fuelCost" placeholder="예: 72000"
+                        class="w-full bg-slate-100 border-none p-4 rounded-2xl text-lg font-black outline-none focus:ring-2 focus:ring-indigo-400">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-400 mb-1.5 uppercase">메모 (선택)</label>
+                <input type="text" id="fuelMemo" placeholder="예: GS칼텍스 집근처"
+                    class="w-full bg-slate-100 border-none p-4 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400">
+            </div>
+            <button id="saveFuelBtn" onclick="saveFuel()"
+                class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-lg shadow-lg shadow-indigo-100 active:scale-95 transition-all">
+                저장하기
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // ══════════════════════════════════════════════
+        // 설정
+        // ══════════════════════════════════════════════
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbyxizxTU-tZM2o79HGiK1M_rlfTZgkwcZ_xkTorwo8w_pB8eoJdoNKLRiFZwokRuooecg/exec';
+
+        const defaultData = [
+            { id: 3, name: "에어컨 필터",      icon: "🍃", kmInt: 10000,  monthInt: 6,  lastKm: 39651, lastDate: "2026-03-26", history: [] },
+            { id: 4, name: "와이퍼 블레이드",  icon: "🧹", kmInt: 10000,  monthInt: 6,  lastKm: 35355, lastDate: "2025-11-26", history: [] },
+            { id: 0, name: "엔진오일 세트",   icon: "🛢️", kmInt: 10000,  monthInt: 12, lastKm: 35189, lastDate: "2025-11-20", history: [] },
+            { id: 5, name: "타이어 위치교환",  icon: "🛞", kmInt: 10000,  monthInt: 12, lastKm: 27604, lastDate: "2025-05-17", history: [] },
+            { id: 1, name: "브레이크 오일",    icon: "🧪", kmInt: 40000,  monthInt: 24, lastKm: 0,     lastDate: "2023-05-09", history: [] },
+            { id: 2, name: "브레이크 패드",    icon: "🛑", kmInt: 50000,  monthInt: 48, lastKm: 0,     lastDate: "2023-05-09", history: [] },
+            { id: 8, name: "점화플러그 세트",  icon: "⚡", kmInt: 75000,  monthInt: 72, lastKm: 0,     lastDate: "2023-05-09", history: [] },
+            { id: 7, name: "미션 오일",        icon: "⚙️", kmInt: 90000,  monthInt: 60, lastKm: 0,     lastDate: "2023-05-09", history: [] },
+            { id: 6, name: "배터리",           icon: "🔋", kmInt: 999999, monthInt: 48, lastKm: 0,     lastDate: "2023-05-09", history: [] }
+        ];
+
+        let myData = [];
+        let fuelLog = []; // { id, date, km, liters, cost, memo, efficiency }
+        let currentTab = 'maint';
+        let kmDebounceTimer = null;
+        let isSyncing = false;
+
+        // ══════════════════════════════════════════════
+        // 탭 전환
+        // ══════════════════════════════════════════════
+        function switchTab(tab) {
+            currentTab = tab;
+            ['maint','fuel','stats'].forEach(t => {
+                document.getElementById('tab-content-' + t).classList.add('hidden');
+                document.getElementById('tab-content-' + t).classList.remove('active');
+                const btn = document.getElementById('tab-' + t);
+                btn.className = 'flex-1 py-2.5 text-xs font-black text-slate-400 border-b-2 border-transparent transition-all';
+            });
+            document.getElementById('tab-content-' + tab).classList.remove('hidden');
+            document.getElementById('tab-content-' + tab).classList.add('active');
+            const activeBtn = document.getElementById('tab-' + tab);
+            activeBtn.className = 'flex-1 py-2.5 text-xs font-black text-indigo-600 border-b-2 border-indigo-600 transition-all';
+
+            if (tab === 'stats') renderStats();
+            if (tab === 'fuel') renderFuel();
+        }
+
+        // ══════════════════════════════════════════════
+        // 동기화 상태
+        // ══════════════════════════════════════════════
+        function setSyncStatus(state) {
+            const icon = document.getElementById('syncIcon');
+            const text = document.getElementById('syncText');
+            const wrap = document.getElementById('syncStatus');
+            if (state === 'loading' || state === 'saving') {
+                icon.classList.add('sync-spinner');
+                icon.style.color = '#6366f1'; text.textContent = state === 'saving' ? '저장 중...' : '불러오는 중...'; wrap.style.color = '#6366f1';
+            } else if (state === 'ok') {
+                icon.classList.remove('sync-spinner');
+                icon.style.color = '#22c55e'; text.textContent = '동기화 완료'; wrap.style.color = '#22c55e';
+            } else {
+                icon.classList.remove('sync-spinner');
+                icon.style.color = '#ef4444'; text.textContent = '오프라인'; wrap.style.color = '#ef4444';
+            }
+        }
+
+        // ══════════════════════════════════════════════
+        // 데이터 불러오기 (GET)
+        // ══════════════════════════════════════════════
+        async function loadFromCloud() {
+            setSyncStatus('loading');
+            try {
+                const res = await fetch(GAS_URL + '?action=get');
+                const json = await res.json();
+                if (json.data && Array.isArray(json.data) && json.data.length > 0) {
+                    myData = json.data.map(d => ({ history: [], ...d }));
+                    if (json.currKm) document.getElementById('currKm').value = json.currKm;
+                } else {
+                    // 시트가 비어있으면 기본값 사용 후 클라우드에 초기 저장
+                    myData = defaultData;
+                    saveToCloud();
+                }
+                fuelLog = (json.fuelLog && Array.isArray(json.fuelLog)) ? json.fuelLog : [];
+                localStorage.setItem('seltosDataV5', JSON.stringify(myData));
+                localStorage.setItem('seltosKm', document.getElementById('currKm').value);
+                localStorage.setItem('seltosFL', JSON.stringify(fuelLog));
+                setSyncStatus('ok');
+            } catch(e) {
+                myData = JSON.parse(localStorage.getItem('seltosDataV5') || 'null') || defaultData;
+                myData = myData.map(d => ({ history: [], ...d }));
+                fuelLog = JSON.parse(localStorage.getItem('seltosFL') || '[]');
+                const km = localStorage.getItem('seltosKm');
+                if (km) document.getElementById('currKm').value = km;
+                setSyncStatus('error');
+            }
+            document.getElementById('loadingScreen').classList.add('hidden');
+            document.getElementById('tab-content-maint').classList.remove('hidden');
+            document.getElementById('tab-content-maint').classList.add('active');
+            renderMaint();
+            renderFuel();
+        }
+
+        // ══════════════════════════════════════════════
+        // 데이터 저장 (POST)
+        // ══════════════════════════════════════════════
+        async function saveToCloud(changedItem = null) {
+            if (isSyncing) return;
+            isSyncing = true;
+            setSyncStatus('saving');
+            const currKm = Number(document.getElementById('currKm').value);
+            localStorage.setItem('seltosDataV5', JSON.stringify(myData));
+            localStorage.setItem('seltosKm', currKm);
+            localStorage.setItem('seltosFL', JSON.stringify(fuelLog));
+            try {
+                await fetch(GAS_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({ data: myData, currKm, fuelLog, changedItem })
+                });
+                setSyncStatus('ok');
+            } catch(e) {
+                setSyncStatus('error');
+            }
+            isSyncing = false;
+        }
+
+        // ══════════════════════════════════════════════
+        // 정비 탭 렌더
+        // ══════════════════════════════════════════════
+        function renderMaint() {
+            document.getElementById('dateDisplay').innerText = new Date().toISOString().split('T')[0];
+            const currKm = Number(document.getElementById('currKm').value);
+            const currDate = new Date();
+            const listEl = document.getElementById('maintList');
+            const selectEl = document.getElementById('inputItem');
+            listEl.innerHTML = '';
+            selectEl.innerHTML = '';
+
+            myData.forEach(item => {
+                const remainKm = (item.lastKm + item.kmInt) - currKm;
+                const lastDate = new Date(item.lastDate);
+                const nextDate = new Date(new Date(item.lastDate).setMonth(new Date(item.lastDate).getMonth() + item.monthInt));
+                const remainDays = Math.ceil((nextDate - currDate) / 86400000);
+                const isOver = remainKm <= 0 || remainDays <= 0;
+                const lastHistory = item.history && item.history.length > 0 ? item.history[item.history.length - 1] : null;
+                const costBadge = lastHistory && lastHistory.cost
+                    ? `<span class="text-[9px] font-bold text-slate-400">${Number(lastHistory.cost).toLocaleString()}원</span>` : '';
+                const memoBadge = lastHistory && lastHistory.memo
+                    ? `<span class="text-[9px] text-slate-300"> · ${lastHistory.memo}</span>` : '';
+
+                listEl.innerHTML += `
+                    <div class="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100 flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-4">
+                            <span class="text-3xl">${item.icon}</span>
+                            <div>
+                                <h3 class="font-black text-slate-800 text-sm">${item.name}</h3>
+                                <p class="text-[10px] font-bold ${isOver ? 'text-red-500' : 'text-slate-400'} uppercase">
+                                    ${isOver ? '🚨 Service Due' : '✓ OK'}
+                                </p>
+                                <div class="flex items-center gap-1 mt-0.5">${costBadge}${memoBadge}</div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-xs font-black text-slate-700">${item.kmInt > 500000 ? '-' : (remainKm <= 0 ? '0' : remainKm.toLocaleString())} km</div>
+                            <div class="text-[10px] font-bold text-slate-400 underline decoration-indigo-200 cursor-pointer" onclick="quickEdit(${item.id})">기록수정</div>
+                        </div>
+                    </div>`;
+                selectEl.innerHTML += `<option value="${item.id}">${item.name}</option>`;
+            });
+        }
+
+        // ══════════════════════════════════════════════
+        // 주유 탭 렌더
+        // ══════════════════════════════════════════════
+        function renderFuel() {
+            const sorted = [...fuelLog].sort((a,b) => new Date(b.date) - new Date(a.date));
+            const listEl = document.getElementById('fuelList');
+            const emptyEl = document.getElementById('fuelEmpty');
+            listEl.innerHTML = '';
+
+            // 연비 (최근 5회 평균)
+            const withEff = sorted.filter(f => f.efficiency && f.efficiency > 0);
+            const avgEff = withEff.length > 0
+                ? (withEff.slice(0,5).reduce((s,f) => s + f.efficiency, 0) / Math.min(withEff.length, 5)).toFixed(1)
+                : '--';
+            document.getElementById('avgEfficiency').textContent = avgEff;
+
+            // 이번달 주유비
+            const now = new Date();
+            const thisMonthFuel = fuelLog.filter(f => {
+                const d = new Date(f.date);
+                return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+            });
+            const monthCost = thisMonthFuel.reduce((s,f) => s + (f.cost||0), 0);
+            document.getElementById('monthFuelCost').textContent = monthCost > 0 ? monthCost.toLocaleString() + '원' : '--';
+            document.getElementById('totalFuelCount').textContent = fuelLog.length + '회';
+
+            if (sorted.length === 0) {
+                emptyEl.classList.remove('hidden');
+                return;
+            }
+            emptyEl.classList.add('hidden');
+
+            sorted.forEach((entry, i) => {
+                const effBadge = entry.efficiency > 0
+                    ? `<span class="text-xs font-black text-indigo-600">${entry.efficiency.toFixed(1)} km/L</span>`
+                    : '';
+                listEl.innerHTML += `
+                    <div class="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="font-black text-slate-800 text-sm">${entry.date}</p>
+                                <p class="text-[10px] text-slate-400 font-bold mt-0.5">${entry.km.toLocaleString()} km · ${entry.liters}L</p>
+                                ${entry.memo ? `<p class="text-[10px] text-slate-300 mt-0.5">${entry.memo}</p>` : ''}
+                            </div>
+                            <div class="text-right">
+                                <p class="font-black text-slate-800 text-sm">${entry.cost ? entry.cost.toLocaleString() + '원' : '--'}</p>
+                                <div class="mt-0.5">${effBadge}</div>
+                            </div>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        // ══════════════════════════════════════════════
+        // 통계 탭 렌더
+        // ══════════════════════════════════════════════
+        function renderStats() {
+            const now = new Date();
+            const thisYear = now.getFullYear();
+
+            // 올해 정비비 (history 기록 기준)
+            let maintCost = 0;
+            const maintHistList = [];
+            myData.forEach(item => {
+                (item.history || []).forEach(h => {
+                    if (new Date(h.date).getFullYear() === thisYear && h.cost) {
+                        maintCost += Number(h.cost);
+                        maintHistList.push({ name: item.name, icon: item.icon, ...h });
+                    }
+                });
+            });
+
+            // 올해 주유비
+            const yearFuel = fuelLog.filter(f => new Date(f.date).getFullYear() === thisYear);
+            const fuelCost = yearFuel.reduce((s,f) => s + (f.cost||0), 0);
+
+            document.getElementById('statMaintCost').textContent = maintCost.toLocaleString() + '원';
+            document.getElementById('statFuelCost').textContent = fuelCost.toLocaleString() + '원';
+            document.getElementById('statTotalCost').textContent = (maintCost + fuelCost).toLocaleString() + '원';
+
+            // 월별 주유비 바 차트
+            const monthlyEl = document.getElementById('monthlyFuelChart');
+            const monthMap = {};
+            fuelLog.forEach(f => {
+                const d = new Date(f.date);
+                if (d.getFullYear() === thisYear) {
+                    const key = d.getMonth() + 1;
+                    monthMap[key] = (monthMap[key] || 0) + (f.cost || 0);
+                }
+            });
+            const maxVal = Math.max(...Object.values(monthMap), 1);
+            const monthNames = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+            monthlyEl.innerHTML = '';
+            for (let m = 1; m <= now.getMonth()+1; m++) {
+                const val = monthMap[m] || 0;
+                const pct = Math.round((val / maxVal) * 100);
+                monthlyEl.innerHTML += `
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-bold text-slate-400 w-7">${monthNames[m-1]}</span>
+                        <div class="flex-1 bg-slate-100 rounded-full h-2">
+                            <div class="bg-indigo-500 h-2 rounded-full transition-all" style="width:${pct}%"></div>
+                        </div>
+                        <span class="text-[10px] font-bold text-slate-600 w-16 text-right">${val > 0 ? val.toLocaleString()+'원' : '-'}</span>
+                    </div>`;
+            }
+            if (Object.keys(monthMap).length === 0) {
+                monthlyEl.innerHTML = '<p class="text-center text-slate-400 text-xs py-3">주유 기록이 없어요</p>';
+            }
+
+            // 정비 이력
+            const histEl = document.getElementById('maintHistory');
+            const emptyEl = document.getElementById('maintHistoryEmpty');
+            histEl.innerHTML = '';
+            if (maintHistList.length === 0) {
+                emptyEl.classList.remove('hidden');
+            } else {
+                emptyEl.classList.add('hidden');
+                maintHistList.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(h => {
+                    histEl.innerHTML += `
+                        <div class="flex justify-between items-center py-1.5 border-b border-slate-50 last:border-0">
+                            <div class="flex items-center gap-2">
+                                <span class="text-lg">${h.icon}</span>
+                                <div>
+                                    <p class="text-xs font-black text-slate-700">${h.name}</p>
+                                    <p class="text-[10px] text-slate-400">${h.date} · ${h.km ? h.km.toLocaleString()+'km' : ''}</p>
+                                </div>
+                            </div>
+                            <span class="text-xs font-black text-slate-700">${h.cost ? Number(h.cost).toLocaleString()+'원' : '-'}</span>
+                        </div>`;
+                });
+            }
+        }
+
+        // ══════════════════════════════════════════════
+        // 바텀시트 제어
+        // ══════════════════════════════════════════════
+        function openSheet() {
+            const sheet = currentTab === 'fuel' ? 'sheetFuel' : 'sheetMaint';
+            document.getElementById(sheet).classList.add('active');
+            document.getElementById('overlay').classList.add('active');
+        }
+
+        function closeSheet() {
+            ['sheetMaint','sheetFuel'].forEach(id => {
+                document.getElementById(id).classList.remove('active');
+            });
+            document.getElementById('overlay').classList.remove('active');
+        }
+
+        function quickEdit(id) {
+            document.getElementById('inputItem').value = id;
+            document.getElementById('sheetMaint').classList.add('active');
+            document.getElementById('overlay').classList.add('active');
+        }
+
+        // ══════════════════════════════════════════════
+        // 정비 저장
+        // ══════════════════════════════════════════════
+        async function saveMaint() {
+            const id   = document.getElementById('inputItem').value;
+            const km   = document.getElementById('inputKm').value;
+            const cost = document.getElementById('inputCost').value;
+            const memo = document.getElementById('inputMemo').value;
+            if (!km) return alert("주행거리를 입력하세요!");
+
+            const btn = document.getElementById('saveMaintBtn');
+            btn.textContent = '저장 중...'; btn.disabled = true;
+
+            const idx = myData.findIndex(d => d.id == id);
+            const today = new Date().toISOString().split('T')[0];
+            myData[idx].lastKm   = Number(km);
+            myData[idx].lastDate = today;
+
+            // 이력에 추가
+            if (!myData[idx].history) myData[idx].history = [];
+            myData[idx].history.push({ date: today, km: Number(km), cost: cost ? Number(cost) : null, memo: memo || "" });
+
+            renderMaint();
+            closeSheet();
+            document.getElementById('inputKm').value = '';
+            document.getElementById('inputCost').value = '';
+            document.getElementById('inputMemo').value = '';
+
+            await saveToCloud({ name: myData[idx].name, lastKm: Number(km), cost: cost || null, memo: memo || "" });
+            btn.textContent = '저장하기'; btn.disabled = false;
+        }
+
+        // ══════════════════════════════════════════════
+        // 주유 저장
+        // ══════════════════════════════════════════════
+        async function saveFuel() {
+            const km     = document.getElementById('fuelKm').value;
+            const liters = document.getElementById('fuelLiters').value;
+            const cost   = document.getElementById('fuelCost').value;
+            const memo   = document.getElementById('fuelMemo').value;
+            if (!km || !liters) return alert("주행거리와 주유량을 입력하세요!");
+
+            const btn = document.getElementById('saveFuelBtn');
+            btn.textContent = '저장 중...'; btn.disabled = true;
+
+            // 연비 계산 (이전 주유 km 기준)
+            let efficiency = 0;
+            if (fuelLog.length > 0) {
+                const prev = [...fuelLog].sort((a,b) => b.km - a.km)[0];
+                if (prev && Number(km) > prev.km) {
+                    efficiency = (Number(km) - prev.km) / Number(liters);
+                }
+            }
+
+            const entry = {
+                id: Date.now(),
+                date: new Date().toISOString().split('T')[0],
+                km: Number(km),
+                liters: Number(liters),
+                cost: cost ? Number(cost) : null,
+                memo: memo || "",
+                efficiency: Math.round(efficiency * 10) / 10
+            };
+            fuelLog.push(entry);
+
+            // 현재 주행거리도 업데이트
+            document.getElementById('currKm').value = Number(km);
+
+            renderFuel();
+            closeSheet();
+            ['fuelKm','fuelLiters','fuelCost','fuelMemo'].forEach(id => document.getElementById(id).value = '');
+
+            await saveToCloud(null);
+            btn.textContent = '저장하기'; btn.disabled = false;
+        }
+
+        function onKmChange() {
+            renderMaint();
+            clearTimeout(kmDebounceTimer);
+            kmDebounceTimer = setTimeout(() => saveToCloud(), 1500);
+        }
+
+        // ══════════════════════════════════════════════
+        // 앱 시작
+        // ══════════════════════════════════════════════
+        loadFromCloud();
+    </script>
+</body>
+</html>
