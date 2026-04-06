@@ -20,7 +20,6 @@
 </head>
 <body class="bg-slate-50">
 
-    <!-- 상단 헤더 -->
     <div class="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100">
         <div class="max-w-md mx-auto px-5 py-4 flex justify-between items-center">
             <div>
@@ -42,7 +41,6 @@
             </div>
         </div>
 
-        <!-- 탭 네비게이션 -->
         <div class="max-w-md mx-auto flex border-t border-slate-100">
             <button onclick="switchTab('maint')" id="tab-maint"
                 class="flex-1 py-2.5 text-xs font-black text-indigo-600 border-b-2 border-indigo-600 transition-all">
@@ -59,21 +57,17 @@
         </div>
     </div>
 
-    <!-- 로딩 스켈레톤 -->
     <div id="loadingScreen" class="max-w-md mx-auto p-4 space-y-3">
         <div class="bg-white rounded-[2rem] h-20 animate-pulse"></div>
         <div class="bg-white rounded-[2rem] h-20 animate-pulse"></div>
         <div class="bg-white rounded-[2rem] h-20 animate-pulse"></div>
     </div>
 
-    <!-- ── 탭 1: 정비 ── -->
     <div id="tab-content-maint" class="tab-content hidden max-w-md mx-auto p-4 space-y-3 pb-32">
         <div id="maintList"></div>
     </div>
 
-    <!-- ── 탭 2: 주유 ── -->
     <div id="tab-content-fuel" class="tab-content hidden max-w-md mx-auto p-4 pb-32">
-        <!-- 연비 요약 카드 -->
         <div class="bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-[2rem] p-5 mb-3 text-white shadow-lg shadow-indigo-100">
             <div class="flex justify-between items-center">
                 <div>
@@ -93,16 +87,13 @@
                 </div>
             </div>
         </div>
-        <!-- 주유 기록 리스트 -->
         <div id="fuelList" class="space-y-3"></div>
         <p id="fuelEmpty" class="text-center text-slate-400 text-sm font-bold py-10 hidden">
             아직 주유 기록이 없어요<br><span class="text-xs font-normal">+ 버튼으로 추가해보세요</span>
         </p>
     </div>
 
-    <!-- ── 탭 3: 통계 ── -->
     <div id="tab-content-stats" class="tab-content hidden max-w-md mx-auto p-4 pb-32">
-        <!-- 올해 총 비용 -->
         <div class="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100 mb-3">
             <p class="text-xs font-black text-slate-400 uppercase mb-3">올해 지출 요약</p>
             <div class="flex justify-between items-end">
@@ -119,15 +110,22 @@
                     <p id="statTotalCost" class="text-2xl font-black text-indigo-600">0원</p>
                 </div>
             </div>
+            <div class="mt-4 pt-3 border-t border-slate-50 flex justify-between items-center">
+                <p class="text-[10px] text-slate-400 font-bold">누적 km당 유지비</p>
+                <p id="statCostPerKm" class="text-sm font-black text-slate-800">0원</p>
+            </div>
         </div>
 
-        <!-- 월별 주유비 -->
+        <div class="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100 mb-3">
+            <p class="text-xs font-black text-slate-400 uppercase mb-3">최근 5회 연비 추이</p>
+            <div id="effChart" class="space-y-2"></div>
+        </div>
+
         <div class="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100 mb-3">
             <p class="text-xs font-black text-slate-400 uppercase mb-3">월별 주유비</p>
             <div id="monthlyFuelChart" class="space-y-2"></div>
         </div>
 
-        <!-- 정비 이력 -->
         <div class="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100">
             <p class="text-xs font-black text-slate-400 uppercase mb-3">정비 이력</p>
             <div id="maintHistory" class="space-y-2"></div>
@@ -135,17 +133,14 @@
         </div>
     </div>
 
-    <!-- FAB 버튼 -->
     <div class="fixed bottom-6 right-6 z-30">
         <button onclick="openSheet()" class="w-14 h-14 bg-indigo-600 text-white rounded-full shadow-xl flex items-center justify-center text-3xl font-light hover:scale-110 active:scale-95 transition-all">
             +
         </button>
     </div>
 
-    <!-- 오버레이 -->
     <div id="overlay" onclick="closeSheet()" class="overlay fixed inset-0 bg-black/40 z-40"></div>
 
-    <!-- ── 정비 기록 바텀시트 ── -->
     <div id="sheetMaint" class="bottom-sheet fixed bottom-0 left-0 right-0 bg-white z-50 rounded-t-[2.5rem] p-8 shadow-2xl max-w-md mx-auto">
         <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6"></div>
         <h2 class="text-xl font-black mb-6">정비 기록하기 🔧</h2>
@@ -154,6 +149,20 @@
                 <label class="block text-xs font-bold text-slate-400 mb-1.5 uppercase">항목 선택</label>
                 <select id="inputItem" class="w-full bg-slate-100 border-none p-4 rounded-2xl text-sm font-bold outline-none"></select>
             </div>
+        <div class="space-y-3">
+            <div>
+                <label class="block text-xs font-bold text-slate-400 mb-1.5 uppercase">항목 선택</label>
+                <select id="inputItem" class="w-full bg-slate-100 border-none p-4 rounded-2xl text-sm font-bold outline-none"></select>
+            </div>
+            
+            <div>
+                <label class="block text-xs font-bold text-slate-400 mb-1.5 uppercase">날짜 (보험/검사는 기준일 입력)</label>
+                <input type="date" id="inputDate"
+                    class="w-full bg-slate-100 border-none p-4 rounded-2xl text-lg font-black text-slate-700 outline-none focus:ring-2 focus:ring-indigo-400">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-400 mb-1.5 uppercase">정비 시점 거리 (KM)</label>
+                <input type="number" id="inputKm" placeholder="예: 39800"
             <div>
                 <label class="block text-xs font-bold text-slate-400 mb-1.5 uppercase">정비 시점 거리 (KM)</label>
                 <input type="number" id="inputKm" placeholder="예: 39800"
@@ -173,10 +182,13 @@
                 class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-lg shadow-lg shadow-indigo-100 active:scale-95 transition-all">
                 저장하기
             </button>
+           <button id="deleteMaintBtn" onclick="deleteLastMaint()"
+                class="w-full bg-slate-200 text-slate-500 py-3 mt-3 rounded-2xl font-bold text-sm active:scale-95 transition-all hidden">
+                🗑️ 최근 기록 삭제
+            </button>
         </div>
     </div>
 
-    <!-- ── 주유 기록 바텀시트 ── -->
     <div id="sheetFuel" class="bottom-sheet fixed bottom-0 left-0 right-0 bg-white z-50 rounded-t-[2.5rem] p-8 shadow-2xl max-w-md mx-auto">
         <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6"></div>
         <h2 class="text-xl font-black mb-6">주유 기록하기 ⛽</h2>
@@ -216,6 +228,7 @@
         // ══════════════════════════════════════════════
         const GAS_URL = 'https://script.google.com/macros/s/AKfycbyxizxTU-tZM2o79HGiK1M_rlfTZgkwcZ_xkTorwo8w_pB8eoJdoNKLRiFZwokRuooecg/exec';
 
+        // 1. 자동차 정기검사, 자동차 보험 항목 추가
         const defaultData = [
             { id: 3, name: "에어컨 필터",      icon: "🍃", kmInt: 10000,  monthInt: 6,  lastKm: 39651, lastDate: "2026-03-26", history: [] },
             { id: 4, name: "와이퍼 블레이드",  icon: "🧹", kmInt: 10000,  monthInt: 6,  lastKm: 35355, lastDate: "2025-11-26", history: [] },
@@ -225,11 +238,13 @@
             { id: 2, name: "브레이크 패드",    icon: "🛑", kmInt: 50000,  monthInt: 48, lastKm: 0,     lastDate: "2023-05-09", history: [] },
             { id: 8, name: "점화플러그 세트",  icon: "⚡", kmInt: 75000,  monthInt: 72, lastKm: 0,     lastDate: "2023-05-09", history: [] },
             { id: 7, name: "미션 오일",        icon: "⚙️", kmInt: 90000,  monthInt: 60, lastKm: 0,     lastDate: "2023-05-09", history: [] },
-            { id: 6, name: "배터리",           icon: "🔋", kmInt: 999999, monthInt: 48, lastKm: 0,     lastDate: "2023-05-09", history: [] }
+            { id: 6, name: "배터리",           icon: "🔋", kmInt: 999999, monthInt: 48, lastKm: 0,     lastDate: "2023-05-09", history: [] },
+            { id: 10, name: "자동차 정기검사", icon: "📋", kmInt: 999999, monthInt: 48, lastKm: 0,     lastDate: "2023-05-09", history: [] },
+            { id: 11, name: "자동차 보험 갱신", icon: "🛡️", kmInt: 999999, monthInt: 12, lastKm: 0,     lastDate: "2025-05-09", history: [] }
         ];
 
         let myData = [];
-        let fuelLog = []; // { id, date, km, liters, cost, memo, efficiency }
+        let fuelLog = []; 
         let currentTab = 'maint';
         let kmDebounceTimer = null;
         let isSyncing = false;
@@ -273,41 +288,72 @@
             }
         }
 
-        // ══════════════════════════════════════════════
-        // 데이터 불러오기 (GET)
+        
+      // ══════════════════════════════════════════════
+        // 데이터 불러오기 (GET) - 신규 항목 자동 병합 로직 추가
         // ══════════════════════════════════════════════
         async function loadFromCloud() {
             setSyncStatus('loading');
             try {
                 const res = await fetch(GAS_URL + '?action=get');
                 const json = await res.json();
+                
                 if (json.data && Array.isArray(json.data) && json.data.length > 0) {
                     myData = json.data.map(d => ({ history: [], ...d }));
                     if (json.currKm) document.getElementById('currKm').value = json.currKm;
                 } else {
-                    // 시트가 비어있으면 기본값 사용 후 클라우드에 초기 저장
-                    myData = defaultData;
-                    saveToCloud();
+                    myData = JSON.parse(JSON.stringify(defaultData));
                 }
+                
                 fuelLog = (json.fuelLog && Array.isArray(json.fuelLog)) ? json.fuelLog : [];
+
+                // --- [핵심 추가] 기존 데이터에 없는 신규 항목(정기검사, 보험) 찾아내서 병합하기 ---
+                const existingIds = myData.map(item => item.id);
+                let hasNewItem = false;
+                defaultData.forEach(defItem => {
+                    if (!existingIds.includes(defItem.id)) {
+                        myData.push(JSON.parse(JSON.stringify(defItem)));
+                        hasNewItem = true;
+                    }
+                });
+                // --------------------------------------------------------------------
+
                 localStorage.setItem('seltosDataV5', JSON.stringify(myData));
                 localStorage.setItem('seltosKm', document.getElementById('currKm').value);
                 localStorage.setItem('seltosFL', JSON.stringify(fuelLog));
-                setSyncStatus('ok');
+                
+                // 새로운 항목이 추가되었다면 구글 시트에도 덮어쓰기 해서 동기화
+                if (hasNewItem || !json.data) {
+                    saveToCloud();
+                } else {
+                    setSyncStatus('ok');
+                }
+
             } catch(e) {
-                myData = JSON.parse(localStorage.getItem('seltosDataV5') || 'null') || defaultData;
+                // 오프라인/에러 시 로컬 스토리지에서 불러오기
+                myData = JSON.parse(localStorage.getItem('seltosDataV5') || 'null') || JSON.parse(JSON.stringify(defaultData));
                 myData = myData.map(d => ({ history: [], ...d }));
                 fuelLog = JSON.parse(localStorage.getItem('seltosFL') || '[]');
                 const km = localStorage.getItem('seltosKm');
                 if (km) document.getElementById('currKm').value = km;
+                
+                // 오프라인 상태일 때도 신규 항목 병합 처리
+                const existingIds = myData.map(item => item.id);
+                defaultData.forEach(defItem => {
+                    if (!existingIds.includes(defItem.id)) {
+                        myData.push(JSON.parse(JSON.stringify(defItem)));
+                    }
+                });
+
                 setSyncStatus('error');
             }
+            
             document.getElementById('loadingScreen').classList.add('hidden');
             document.getElementById('tab-content-maint').classList.remove('hidden');
             document.getElementById('tab-content-maint').classList.add('active');
             renderMaint();
             renderFuel();
-        }
+        }  
 
         // ══════════════════════════════════════════════
         // 데이터 저장 (POST)
@@ -334,9 +380,9 @@
         }
 
         // ══════════════════════════════════════════════
-        // 정비 탭 렌더
+        // 정비 탭 렌더 (기간 및 D-Day 표시 적용)
         // ══════════════════════════════════════════════
-        function renderMaint() {
+      function renderMaint() {
             document.getElementById('dateDisplay').innerText = new Date().toISOString().split('T')[0];
             const currKm = Number(document.getElementById('currKm').value);
             const currDate = new Date();
@@ -346,16 +392,44 @@
             selectEl.innerHTML = '';
 
             myData.forEach(item => {
+                // 1. 주기 계산 (검사 이력 있으면 24개월로 변경)
+                let calcMonthInt = item.monthInt;
+                if (item.id === 10 && item.history && item.history.length > 0) calcMonthInt = 24; 
+
                 const remainKm = (item.lastKm + item.kmInt) - currKm;
-                const lastDate = new Date(item.lastDate);
-                const nextDate = new Date(new Date(item.lastDate).setMonth(new Date(item.lastDate).getMonth() + item.monthInt));
-                const remainDays = Math.ceil((nextDate - currDate) / 86400000);
-                const isOver = remainKm <= 0 || remainDays <= 0;
+                const nextDate = new Date(new Date(item.lastDate).setMonth(new Date(item.lastDate).getMonth() + calcMonthInt));
+                const remainDays = Math.ceil((nextDate.getTime() - currDate.getTime()) / 86400000);
+                
+                // 보험(11), 검사(10)는 날짜로만 판단, 나머지는 거리/날짜 둘 다 판단
+                const isOver = (item.id === 10 || item.id === 11) ? remainDays <= 0 : (remainKm <= 0 || remainDays <= 0);
+                
                 const lastHistory = item.history && item.history.length > 0 ? item.history[item.history.length - 1] : null;
                 const costBadge = lastHistory && lastHistory.cost
                     ? `<span class="text-[9px] font-bold text-slate-400">${Number(lastHistory.cost).toLocaleString()}원</span>` : '';
                 const memoBadge = lastHistory && lastHistory.memo
                     ? `<span class="text-[9px] text-slate-300"> · ${lastHistory.memo}</span>` : '';
+
+                // 2. 왼쪽 이름 밑 텍스트 설정
+                let subText = '';
+                if (item.id === 10 || item.id === 11) {
+                    const y = nextDate.getFullYear().toString().slice(2);
+                    const m = String(nextDate.getMonth() + 1).padStart(2, '0');
+                    const d = String(nextDate.getDate()).padStart(2, '0');
+                    subText = `<span class="${isOver ? 'text-red-500' : 'text-indigo-500'} font-bold">~${y}.${m}.${d}.까지</span>`;
+                } else {
+                    subText = `<span class="${isOver ? 'text-red-500' : 'text-slate-400'} font-bold uppercase">${isOver ? '🚨 Service Due' : '✓ OK'}</span>`;
+                }
+
+                // 3. 오른쪽 상단(기록수정 위) 텍스트 설정
+                let rightTopText = '';
+                if (item.id === 10 || item.id === 11) {
+                    rightTopText = `<span class="text-sm font-black ${isOver ? 'text-red-600' : 'text-indigo-600'}">D-${remainDays}</span>`;
+                } else if (item.kmInt >= 900000) {
+                    // 배터리처럼 교체 주기가 매우 긴 항목은 숫자 대신 '-' 표시
+                    rightTopText = `<span class="text-xs font-black text-slate-400">-</span>`;
+                } else {
+                    rightTopText = `<span class="text-xs font-black text-slate-700">${remainKm <= 0 ? '0' : remainKm.toLocaleString()} km</span>`;
+                }
 
                 listEl.innerHTML += `
                     <div class="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100 flex items-center justify-between mb-3">
@@ -363,19 +437,119 @@
                             <span class="text-3xl">${item.icon}</span>
                             <div>
                                 <h3 class="font-black text-slate-800 text-sm">${item.name}</h3>
-                                <p class="text-[10px] font-bold ${isOver ? 'text-red-500' : 'text-slate-400'} uppercase">
-                                    ${isOver ? '🚨 Service Due' : '✓ OK'}
-                                </p>
+                                <p class="text-[10px] mt-0.5">${subText}</p>
                                 <div class="flex items-center gap-1 mt-0.5">${costBadge}${memoBadge}</div>
                             </div>
                         </div>
                         <div class="text-right">
-                            <div class="text-xs font-black text-slate-700">${item.kmInt > 500000 ? '-' : (remainKm <= 0 ? '0' : remainKm.toLocaleString())} km</div>
+                            <div class="mb-1">${rightTopText}</div>
                             <div class="text-[10px] font-bold text-slate-400 underline decoration-indigo-200 cursor-pointer" onclick="quickEdit(${item.id})">기록수정</div>
                         </div>
                     </div>`;
                 selectEl.innerHTML += `<option value="${item.id}">${item.name}</option>`;
             });
+        } 
+
+        // ══════════════════════════════════════════════
+        // 바텀시트 제어 (날짜 기본값 설정 추가)
+        // ══════════════════════════════════════════════
+        function openSheet() {
+            const sheet = currentTab === 'fuel' ? 'sheetFuel' : 'sheetMaint';
+            if (currentTab === 'fuel') {
+                document.getElementById('fuelKm').value = document.getElementById('currKm').value;
+            } else {
+                document.getElementById('inputDate').value = new Date().toISOString().split('T')[0];
+            }
+            document.getElementById(sheet).classList.add('active');
+            document.getElementById('overlay').classList.add('active');
+        }
+
+        function closeSheet() {
+            ['sheetMaint','sheetFuel'].forEach(id => {
+                document.getElementById(id).classList.remove('active');
+            });
+            document.getElementById('overlay').classList.remove('active');
+        }
+
+        function quickEdit(id) {
+            document.getElementById('inputItem').value = id;
+            document.getElementById('inputDate').value = new Date().toISOString().split('T')[0]; // 수정 시 날짜창 기본 세팅
+            
+            const item = myData.find(d => d.id == id);
+            const delBtn = document.getElementById('deleteMaintBtn');
+            if (item && item.history && item.history.length > 0) {
+                delBtn.classList.remove('hidden');
+            } else {
+                delBtn.classList.add('hidden');
+            }
+
+            document.getElementById('sheetMaint').classList.add('active');
+            document.getElementById('overlay').classList.add('active');
+        }
+
+        // ══════════════════════════════════════════════
+        // 정비 저장 (입력한 날짜로 저장되도록 변경)
+        // ══════════════════════════════════════════════
+        async function saveMaint() {
+            const id      = document.getElementById('inputItem').value;
+            const dateVal = document.getElementById('inputDate').value;
+            const km      = document.getElementById('inputKm').value;
+            const cost    = document.getElementById('inputCost').value;
+            const memo    = document.getElementById('inputMemo').value;
+            
+            if (!dateVal) return alert("날짜를 입력하세요!");
+            // 보험(11)과 검사(10)는 주행거리를 안 써도 저장되게 예외 처리
+            if (!km && id != 10 && id != 11) return alert("주행거리를 입력하세요!"); 
+
+            const btn = document.getElementById('saveMaintBtn');
+            btn.textContent = '저장 중...'; btn.disabled = true;
+
+            const idx = myData.findIndex(d => d.id == id);
+            
+            myData[idx].lastKm   = Number(km) || 0;
+            myData[idx].lastDate = dateVal; // 선택한 날짜 반영
+
+            if (!myData[idx].history) myData[idx].history = [];
+            myData[idx].history.push({ date: dateVal, km: Number(km) || 0, cost: cost ? Number(cost) : null, memo: memo || "" });
+
+            renderMaint();
+            closeSheet();
+            document.getElementById('inputKm').value = '';
+            document.getElementById('inputCost').value = '';
+            document.getElementById('inputMemo').value = '';
+
+            await saveToCloud();
+            btn.textContent = '저장하기'; btn.disabled = false;
+        }
+
+        async function deleteLastMaint() {
+            // (deleteLastMaint 함수 내용은 방금 전에 알려준 코드 그대로 유지하면 돼)
+            const id = document.getElementById('inputItem').value;
+            const idx = myData.findIndex(d => d.id == id);
+            
+            if (!myData[idx].history || myData[idx].history.length === 0) return;
+            if (!confirm(`'${myData[idx].name}'의 가장 최근 기록을 정말 삭제하시겠습니까?`)) return;
+
+            const btn = document.getElementById('deleteMaintBtn');
+            btn.textContent = '삭제 중...'; btn.disabled = true;
+
+            myData[idx].history.pop();
+
+            if (myData[idx].history.length > 0) {
+                const prev = myData[idx].history[myData[idx].history.length - 1];
+                myData[idx].lastKm = prev.km;
+                myData[idx].lastDate = prev.date;
+            } else {
+                const defItem = defaultData.find(d => d.id == id);
+                myData[idx].lastKm = defItem ? defItem.lastKm : 0;
+                myData[idx].lastDate = defItem ? defItem.lastDate : "2023-05-09";
+            }
+
+            renderMaint();
+            closeSheet();
+
+            await saveToCloud();
+            btn.textContent = '🗑️ 최근 기록 삭제'; btn.disabled = false;
         }
 
         // ══════════════════════════════════════════════
@@ -387,14 +561,12 @@
             const emptyEl = document.getElementById('fuelEmpty');
             listEl.innerHTML = '';
 
-            // 연비 (최근 5회 평균)
             const withEff = sorted.filter(f => f.efficiency && f.efficiency > 0);
             const avgEff = withEff.length > 0
                 ? (withEff.slice(0,5).reduce((s,f) => s + f.efficiency, 0) / Math.min(withEff.length, 5)).toFixed(1)
                 : '--';
             document.getElementById('avgEfficiency').textContent = avgEff;
 
-            // 이번달 주유비
             const now = new Date();
             const thisMonthFuel = fuelLog.filter(f => {
                 const d = new Date(f.date);
@@ -438,7 +610,7 @@
             const now = new Date();
             const thisYear = now.getFullYear();
 
-            // 올해 정비비 (history 기록 기준)
+            // 올해 비용
             let maintCost = 0;
             const maintHistList = [];
             myData.forEach(item => {
@@ -450,7 +622,6 @@
                 });
             });
 
-            // 올해 주유비
             const yearFuel = fuelLog.filter(f => new Date(f.date).getFullYear() === thisYear);
             const fuelCost = yearFuel.reduce((s,f) => s + (f.cost||0), 0);
 
@@ -458,7 +629,59 @@
             document.getElementById('statFuelCost').textContent = fuelCost.toLocaleString() + '원';
             document.getElementById('statTotalCost').textContent = (maintCost + fuelCost).toLocaleString() + '원';
 
-            // 월별 주유비 바 차트
+            // 2-1. 누적 km당 유지비 계산
+            let totalAllTimeCost = 0;
+            let allKms = [];
+            
+            myData.forEach(item => {
+                (item.history || []).forEach(h => {
+                    if (h.cost) totalAllTimeCost += Number(h.cost);
+                    if (h.km && Number(h.km) > 0) allKms.push(Number(h.km));
+                });
+            });
+            fuelLog.forEach(f => {
+                if (f.cost) totalAllTimeCost += Number(f.cost);
+                if (f.km && Number(f.km) > 0) allKms.push(Number(f.km));
+            });
+
+            const currKmVal = Number(document.getElementById('currKm').value) || 0;
+            let minKm = currKmVal;
+            if (allKms.length > 0) {
+                minKm = Math.min(...allKms);
+            }
+            
+            const distanceDiff = currKmVal - minKm;
+            const costPerKm = distanceDiff > 0 ? Math.round(totalAllTimeCost / distanceDiff) : 0;
+            document.getElementById('statCostPerKm').textContent = costPerKm.toLocaleString() + '원';
+
+            // 2-2. 최근 5회 연비 추이 막대 그래프
+            const effEl = document.getElementById('effChart');
+            effEl.innerHTML = '';
+            const recentEffs = [...fuelLog]
+                .filter(f => f.efficiency > 0)
+                .sort((a, b) => new Date(b.date) - new Date(a.date))
+                .slice(0, 5)
+                .reverse(); // 과거부터 최근순 정렬
+
+            if (recentEffs.length === 0) {
+                effEl.innerHTML = '<p class="text-center text-slate-400 text-xs py-3">연비 기록이 없어요</p>';
+            } else {
+                const maxEff = Math.max(...recentEffs.map(f => f.efficiency));
+                recentEffs.forEach(f => {
+                    const pct = Math.round((f.efficiency / maxEff) * 100);
+                    const dateStr = f.date.substring(5).replace('-', '.'); // yyyy-mm-dd -> mm.dd
+                    effEl.innerHTML += `
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] font-bold text-slate-400 w-7">${dateStr}</span>
+                            <div class="flex-1 bg-slate-100 rounded-full h-2">
+                                <div class="bg-indigo-500 h-2 rounded-full transition-all" style="width:${pct}%"></div>
+                            </div>
+                            <span class="text-[10px] font-bold text-slate-600 w-16 text-right">${f.efficiency.toFixed(1)} km/L</span>
+                        </div>`;
+                });
+            }
+
+            // 월별 주유비
             const monthlyEl = document.getElementById('monthlyFuelChart');
             const monthMap = {};
             fuelLog.forEach(f => {
@@ -512,10 +735,16 @@
         }
 
         // ══════════════════════════════════════════════
-        // 바텀시트 제어
+        // 바텀시트 제어 (3. 주유 탭 입력 자동화 포함)
         // ══════════════════════════════════════════════
         function openSheet() {
             const sheet = currentTab === 'fuel' ? 'sheetFuel' : 'sheetMaint';
+            
+            // 주유 탭에서 바텀시트를 열 때 현재 주행거리를 자동으로 입력
+            if (currentTab === 'fuel') {
+                document.getElementById('fuelKm').value = document.getElementById('currKm').value;
+            }
+
             document.getElementById(sheet).classList.add('active');
             document.getElementById('overlay').classList.add('active');
         }
@@ -529,10 +758,52 @@
 
         function quickEdit(id) {
             document.getElementById('inputItem').value = id;
+            
+            const item = myData.find(d => d.id == id);
+            const delBtn = document.getElementById('deleteMaintBtn');
+            // 기록이 하나라도 있으면 삭제 버튼 표시
+            if (item && item.history && item.history.length > 0) {
+                delBtn.classList.remove('hidden');
+            } else {
+                delBtn.classList.add('hidden');
+            }
+
             document.getElementById('sheetMaint').classList.add('active');
             document.getElementById('overlay').classList.add('active');
         }
 
+        async function deleteLastMaint() {
+            const id = document.getElementById('inputItem').value;
+            const idx = myData.findIndex(d => d.id == id);
+            
+            if (!myData[idx].history || myData[idx].history.length === 0) return;
+            if (!confirm(`'${myData[idx].name}'의 가장 최근 기록을 정말 삭제하시겠습니까?`)) return;
+
+            const btn = document.getElementById('deleteMaintBtn');
+            btn.textContent = '삭제 중...'; btn.disabled = true;
+
+            // 1. 이력에서 맨 마지막 기록 빼기
+            myData[idx].history.pop();
+
+            // 2. 남은 이력이 있다면 그 정보로 롤백, 없으면 기본값으로 롤백
+            if (myData[idx].history.length > 0) {
+                const prev = myData[idx].history[myData[idx].history.length - 1];
+                myData[idx].lastKm = prev.km;
+                myData[idx].lastDate = prev.date;
+            } else {
+                const defItem = defaultData.find(d => d.id == id);
+                myData[idx].lastKm = defItem ? defItem.lastKm : 0;
+                myData[idx].lastDate = defItem ? defItem.lastDate : "2023-05-09";
+            }
+
+            renderMaint();
+            closeSheet();
+
+            // 3. 구글 시트에 변경사항 저장
+            await saveToCloud();
+            btn.textContent = '🗑️ 최근 기록 삭제'; btn.disabled = false;
+        }
+        
         // ══════════════════════════════════════════════
         // 정비 저장
         // ══════════════════════════════════════════════
@@ -551,7 +822,6 @@
             myData[idx].lastKm   = Number(km);
             myData[idx].lastDate = today;
 
-            // 이력에 추가
             if (!myData[idx].history) myData[idx].history = [];
             myData[idx].history.push({ date: today, km: Number(km), cost: cost ? Number(cost) : null, memo: memo || "" });
 
@@ -578,7 +848,6 @@
             const btn = document.getElementById('saveFuelBtn');
             btn.textContent = '저장 중...'; btn.disabled = true;
 
-            // 연비 계산 (이전 주유 km 기준)
             let efficiency = 0;
             if (fuelLog.length > 0) {
                 const prev = [...fuelLog].sort((a,b) => b.km - a.km)[0];
@@ -598,7 +867,6 @@
             };
             fuelLog.push(entry);
 
-            // 현재 주행거리도 업데이트
             document.getElementById('currKm').value = Number(km);
 
             renderFuel();
