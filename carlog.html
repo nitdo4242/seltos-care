@@ -149,20 +149,11 @@
                 <label class="block text-xs font-bold text-slate-400 mb-1.5 uppercase">항목 선택</label>
                 <select id="inputItem" class="w-full bg-slate-100 border-none p-4 rounded-2xl text-sm font-bold outline-none"></select>
             </div>
-        <div class="space-y-3">
-            <div>
-                <label class="block text-xs font-bold text-slate-400 mb-1.5 uppercase">항목 선택</label>
-                <select id="inputItem" class="w-full bg-slate-100 border-none p-4 rounded-2xl text-sm font-bold outline-none"></select>
-            </div>
-            
             <div>
                 <label class="block text-xs font-bold text-slate-400 mb-1.5 uppercase">날짜 (보험/검사는 기준일 입력)</label>
                 <input type="date" id="inputDate"
                     class="w-full bg-slate-100 border-none p-4 rounded-2xl text-lg font-black text-slate-700 outline-none focus:ring-2 focus:ring-indigo-400">
             </div>
-            <div>
-                <label class="block text-xs font-bold text-slate-400 mb-1.5 uppercase">정비 시점 거리 (KM)</label>
-                <input type="number" id="inputKm" placeholder="예: 39800"
             <div>
                 <label class="block text-xs font-bold text-slate-400 mb-1.5 uppercase">정비 시점 거리 (KM)</label>
                 <input type="number" id="inputKm" placeholder="예: 39800"
@@ -182,7 +173,7 @@
                 class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-lg shadow-lg shadow-indigo-100 active:scale-95 transition-all">
                 저장하기
             </button>
-           <button id="deleteMaintBtn" onclick="deleteLastMaint()"
+            <button id="deleteMaintBtn" onclick="deleteLastMaint()"
                 class="w-full bg-slate-200 text-slate-500 py-3 mt-3 rounded-2xl font-bold text-sm active:scale-95 transition-all hidden">
                 🗑️ 최근 기록 삭제
             </button>
@@ -223,12 +214,8 @@
     </div>
 
     <script>
-        // ══════════════════════════════════════════════
-        // 설정
-        // ══════════════════════════════════════════════
         const GAS_URL = 'https://script.google.com/macros/s/AKfycbyxizxTU-tZM2o79HGiK1M_rlfTZgkwcZ_xkTorwo8w_pB8eoJdoNKLRiFZwokRuooecg/exec';
 
-        // 1. 자동차 정기검사, 자동차 보험 항목 추가
         const defaultData = [
             { id: 3, name: "에어컨 필터",      icon: "🍃", kmInt: 10000,  monthInt: 6,  lastKm: 39651, lastDate: "2026-03-26", history: [] },
             { id: 4, name: "와이퍼 블레이드",  icon: "🧹", kmInt: 10000,  monthInt: 6,  lastKm: 35355, lastDate: "2025-11-26", history: [] },
@@ -240,7 +227,7 @@
             { id: 7, name: "미션 오일",        icon: "⚙️", kmInt: 90000,  monthInt: 60, lastKm: 0,     lastDate: "2023-05-09", history: [] },
             { id: 6, name: "배터리",           icon: "🔋", kmInt: 999999, monthInt: 48, lastKm: 0,     lastDate: "2023-05-09", history: [] },
             { id: 10, name: "자동차 정기검사", icon: "📋", kmInt: 999999, monthInt: 48, lastKm: 0,     lastDate: "2023-05-09", history: [] },
-            { id: 11, name: "자동차 보험 갱신", icon: "🛡️", kmInt: 999999, monthInt: 12, lastKm: 0,     lastDate: "2025-05-09", history: [] }
+            { id: 11, name: "자동차 보험 갱신", icon: "🛡️", kmInt: 999999, monthInt: 12, lastKm: 0,     lastDate: "2025-05-11", history: [] }
         ];
 
         let myData = [];
@@ -249,9 +236,6 @@
         let kmDebounceTimer = null;
         let isSyncing = false;
 
-        // ══════════════════════════════════════════════
-        // 탭 전환
-        // ══════════════════════════════════════════════
         function switchTab(tab) {
             currentTab = tab;
             ['maint','fuel','stats'].forEach(t => {
@@ -264,14 +248,10 @@
             document.getElementById('tab-content-' + tab).classList.add('active');
             const activeBtn = document.getElementById('tab-' + tab);
             activeBtn.className = 'flex-1 py-2.5 text-xs font-black text-indigo-600 border-b-2 border-indigo-600 transition-all';
-
             if (tab === 'stats') renderStats();
             if (tab === 'fuel') renderFuel();
         }
 
-        // ══════════════════════════════════════════════
-        // 동기화 상태
-        // ══════════════════════════════════════════════
         function setSyncStatus(state) {
             const icon = document.getElementById('syncIcon');
             const text = document.getElementById('syncText');
@@ -288,26 +268,18 @@
             }
         }
 
-        
-      // ══════════════════════════════════════════════
-        // 데이터 불러오기 (GET) - 신규 항목 자동 병합 로직 추가
-        // ══════════════════════════════════════════════
         async function loadFromCloud() {
             setSyncStatus('loading');
             try {
                 const res = await fetch(GAS_URL + '?action=get');
                 const json = await res.json();
-                
                 if (json.data && Array.isArray(json.data) && json.data.length > 0) {
                     myData = json.data.map(d => ({ history: [], ...d }));
                     if (json.currKm) document.getElementById('currKm').value = json.currKm;
                 } else {
                     myData = JSON.parse(JSON.stringify(defaultData));
                 }
-                
                 fuelLog = (json.fuelLog && Array.isArray(json.fuelLog)) ? json.fuelLog : [];
-
-                // --- [핵심 추가] 기존 데이터에 없는 신규 항목(정기검사, 보험) 찾아내서 병합하기 ---
                 const existingIds = myData.map(item => item.id);
                 let hasNewItem = false;
                 defaultData.forEach(defItem => {
@@ -316,48 +288,27 @@
                         hasNewItem = true;
                     }
                 });
-                // --------------------------------------------------------------------
-
                 localStorage.setItem('seltosDataV5', JSON.stringify(myData));
                 localStorage.setItem('seltosKm', document.getElementById('currKm').value);
                 localStorage.setItem('seltosFL', JSON.stringify(fuelLog));
-                
-                // 새로운 항목이 추가되었다면 구글 시트에도 덮어쓰기 해서 동기화
-                if (hasNewItem || !json.data) {
-                    saveToCloud();
-                } else {
-                    setSyncStatus('ok');
-                }
-
+                if (hasNewItem || !json.data) saveToCloud(); else setSyncStatus('ok');
             } catch(e) {
-                // 오프라인/에러 시 로컬 스토리지에서 불러오기
                 myData = JSON.parse(localStorage.getItem('seltosDataV5') || 'null') || JSON.parse(JSON.stringify(defaultData));
                 myData = myData.map(d => ({ history: [], ...d }));
                 fuelLog = JSON.parse(localStorage.getItem('seltosFL') || '[]');
                 const km = localStorage.getItem('seltosKm');
                 if (km) document.getElementById('currKm').value = km;
-                
-                // 오프라인 상태일 때도 신규 항목 병합 처리
                 const existingIds = myData.map(item => item.id);
-                defaultData.forEach(defItem => {
-                    if (!existingIds.includes(defItem.id)) {
-                        myData.push(JSON.parse(JSON.stringify(defItem)));
-                    }
-                });
-
+                defaultData.forEach(defItem => { if (!existingIds.includes(defItem.id)) myData.push(JSON.parse(JSON.stringify(defItem))); });
                 setSyncStatus('error');
             }
-            
             document.getElementById('loadingScreen').classList.add('hidden');
             document.getElementById('tab-content-maint').classList.remove('hidden');
             document.getElementById('tab-content-maint').classList.add('active');
             renderMaint();
             renderFuel();
-        }  
+        }
 
-        // ══════════════════════════════════════════════
-        // 데이터 저장 (POST)
-        // ══════════════════════════════════════════════
         async function saveToCloud(changedItem = null) {
             if (isSyncing) return;
             isSyncing = true;
@@ -373,16 +324,11 @@
                     body: JSON.stringify({ data: myData, currKm, fuelLog, changedItem })
                 });
                 setSyncStatus('ok');
-            } catch(e) {
-                setSyncStatus('error');
-            }
+            } catch(e) { setSyncStatus('error'); }
             isSyncing = false;
         }
 
-        // ══════════════════════════════════════════════
-        // 정비 탭 렌더 (기간 및 D-Day 표시 적용)
-        // ══════════════════════════════════════════════
-      function renderMaint() {
+        function renderMaint() {
             document.getElementById('dateDisplay').innerText = new Date().toISOString().split('T')[0];
             const currKm = Number(document.getElementById('currKm').value);
             const currDate = new Date();
@@ -392,24 +338,23 @@
             selectEl.innerHTML = '';
 
             myData.forEach(item => {
-                // 1. 주기 계산 (검사 이력 있으면 24개월로 변경)
                 let calcMonthInt = item.monthInt;
                 if (item.id === 10 && item.history && item.history.length > 0) calcMonthInt = 24; 
 
+                // 모바일 호환성을 위해 하이픈(-)을 슬래시(/)로 변환
+                const lastDateStr = item.lastDate.replace(/-/g, "/");
+                const lastDateObj = new Date(lastDateStr);
+                const nextDate = new Date(new Date(lastDateStr).setMonth(lastDateObj.getMonth() + calcMonthInt));
+                
                 const remainKm = (item.lastKm + item.kmInt) - currKm;
-                const nextDate = new Date(new Date(item.lastDate).setMonth(new Date(item.lastDate).getMonth() + calcMonthInt));
                 const remainDays = Math.ceil((nextDate.getTime() - currDate.getTime()) / 86400000);
                 
-                // 보험(11), 검사(10)는 날짜로만 판단, 나머지는 거리/날짜 둘 다 판단
                 const isOver = (item.id === 10 || item.id === 11) ? remainDays <= 0 : (remainKm <= 0 || remainDays <= 0);
                 
                 const lastHistory = item.history && item.history.length > 0 ? item.history[item.history.length - 1] : null;
-                const costBadge = lastHistory && lastHistory.cost
-                    ? `<span class="text-[9px] font-bold text-slate-400">${Number(lastHistory.cost).toLocaleString()}원</span>` : '';
-                const memoBadge = lastHistory && lastHistory.memo
-                    ? `<span class="text-[9px] text-slate-300"> · ${lastHistory.memo}</span>` : '';
+                const costBadge = lastHistory && lastHistory.cost ? `<span class="text-[9px] font-bold text-slate-400">${Number(lastHistory.cost).toLocaleString()}원</span>` : '';
+                const memoBadge = lastHistory && lastHistory.memo ? `<span class="text-[9px] text-slate-300"> · ${lastHistory.memo}</span>` : '';
 
-                // 2. 왼쪽 이름 밑 텍스트 설정
                 let subText = '';
                 if (item.id === 10 || item.id === 11) {
                     const y = nextDate.getFullYear().toString().slice(2);
@@ -420,12 +365,10 @@
                     subText = `<span class="${isOver ? 'text-red-500' : 'text-slate-400'} font-bold uppercase">${isOver ? '🚨 Service Due' : '✓ OK'}</span>`;
                 }
 
-                // 3. 오른쪽 상단(기록수정 위) 텍스트 설정
                 let rightTopText = '';
                 if (item.id === 10 || item.id === 11) {
                     rightTopText = `<span class="text-sm font-black ${isOver ? 'text-red-600' : 'text-indigo-600'}">D-${remainDays}</span>`;
                 } else if (item.kmInt >= 900000) {
-                    // 배터리처럼 교체 주기가 매우 긴 항목은 숫자 대신 '-' 표시
                     rightTopText = `<span class="text-xs font-black text-slate-400">-</span>`;
                 } else {
                     rightTopText = `<span class="text-xs font-black text-slate-700">${remainKm <= 0 ? '0' : remainKm.toLocaleString()} km</span>`;
@@ -448,11 +391,8 @@
                     </div>`;
                 selectEl.innerHTML += `<option value="${item.id}">${item.name}</option>`;
             });
-        } 
+        }
 
-        // ══════════════════════════════════════════════
-        // 바텀시트 제어 (날짜 기본값 설정 추가)
-        // ══════════════════════════════════════════════
         function openSheet() {
             const sheet = currentTab === 'fuel' ? 'sheetFuel' : 'sheetMaint';
             if (currentTab === 'fuel') {
@@ -465,76 +405,52 @@
         }
 
         function closeSheet() {
-            ['sheetMaint','sheetFuel'].forEach(id => {
-                document.getElementById(id).classList.remove('active');
-            });
+            ['sheetMaint','sheetFuel'].forEach(id => { document.getElementById(id).classList.remove('active'); });
             document.getElementById('overlay').classList.remove('active');
         }
 
         function quickEdit(id) {
             document.getElementById('inputItem').value = id;
-            document.getElementById('inputDate').value = new Date().toISOString().split('T')[0]; // 수정 시 날짜창 기본 세팅
-            
+            document.getElementById('inputDate').value = new Date().toISOString().split('T')[0];
             const item = myData.find(d => d.id == id);
             const delBtn = document.getElementById('deleteMaintBtn');
-            if (item && item.history && item.history.length > 0) {
-                delBtn.classList.remove('hidden');
-            } else {
-                delBtn.classList.add('hidden');
-            }
-
+            if (item && item.history && item.history.length > 0) delBtn.classList.remove('hidden'); else delBtn.classList.add('hidden');
             document.getElementById('sheetMaint').classList.add('active');
             document.getElementById('overlay').classList.add('active');
         }
 
-        // ══════════════════════════════════════════════
-        // 정비 저장 (입력한 날짜로 저장되도록 변경)
-        // ══════════════════════════════════════════════
         async function saveMaint() {
-            const id      = document.getElementById('inputItem').value;
+            const id = document.getElementById('inputItem').value;
             const dateVal = document.getElementById('inputDate').value;
-            const km      = document.getElementById('inputKm').value;
-            const cost    = document.getElementById('inputCost').value;
-            const memo    = document.getElementById('inputMemo').value;
-            
+            const km = document.getElementById('inputKm').value;
+            const cost = document.getElementById('inputCost').value;
+            const memo = document.getElementById('inputMemo').value;
             if (!dateVal) return alert("날짜를 입력하세요!");
-            // 보험(11)과 검사(10)는 주행거리를 안 써도 저장되게 예외 처리
             if (!km && id != 10 && id != 11) return alert("주행거리를 입력하세요!"); 
-
             const btn = document.getElementById('saveMaintBtn');
             btn.textContent = '저장 중...'; btn.disabled = true;
-
             const idx = myData.findIndex(d => d.id == id);
-            
-            myData[idx].lastKm   = Number(km) || 0;
-            myData[idx].lastDate = dateVal; // 선택한 날짜 반영
-
+            myData[idx].lastKm = Number(km) || 0;
+            myData[idx].lastDate = dateVal;
             if (!myData[idx].history) myData[idx].history = [];
             myData[idx].history.push({ date: dateVal, km: Number(km) || 0, cost: cost ? Number(cost) : null, memo: memo || "" });
-
             renderMaint();
             closeSheet();
             document.getElementById('inputKm').value = '';
             document.getElementById('inputCost').value = '';
             document.getElementById('inputMemo').value = '';
-
             await saveToCloud();
             btn.textContent = '저장하기'; btn.disabled = false;
         }
 
         async function deleteLastMaint() {
-            // (deleteLastMaint 함수 내용은 방금 전에 알려준 코드 그대로 유지하면 돼)
             const id = document.getElementById('inputItem').value;
             const idx = myData.findIndex(d => d.id == id);
-            
             if (!myData[idx].history || myData[idx].history.length === 0) return;
             if (!confirm(`'${myData[idx].name}'의 가장 최근 기록을 정말 삭제하시겠습니까?`)) return;
-
             const btn = document.getElementById('deleteMaintBtn');
             btn.textContent = '삭제 중...'; btn.disabled = true;
-
             myData[idx].history.pop();
-
             if (myData[idx].history.length > 0) {
                 const prev = myData[idx].history[myData[idx].history.length - 1];
                 myData[idx].lastKm = prev.km;
@@ -544,29 +460,20 @@
                 myData[idx].lastKm = defItem ? defItem.lastKm : 0;
                 myData[idx].lastDate = defItem ? defItem.lastDate : "2023-05-09";
             }
-
             renderMaint();
             closeSheet();
-
             await saveToCloud();
             btn.textContent = '🗑️ 최근 기록 삭제'; btn.disabled = false;
         }
 
-        // ══════════════════════════════════════════════
-        // 주유 탭 렌더
-        // ══════════════════════════════════════════════
         function renderFuel() {
             const sorted = [...fuelLog].sort((a,b) => new Date(b.date) - new Date(a.date));
             const listEl = document.getElementById('fuelList');
             const emptyEl = document.getElementById('fuelEmpty');
             listEl.innerHTML = '';
-
             const withEff = sorted.filter(f => f.efficiency && f.efficiency > 0);
-            const avgEff = withEff.length > 0
-                ? (withEff.slice(0,5).reduce((s,f) => s + f.efficiency, 0) / Math.min(withEff.length, 5)).toFixed(1)
-                : '--';
+            const avgEff = withEff.length > 0 ? (withEff.slice(0,5).reduce((s,f) => s + f.efficiency, 0) / Math.min(withEff.length, 5)).toFixed(1) : '--';
             document.getElementById('avgEfficiency').textContent = avgEff;
-
             const now = new Date();
             const thisMonthFuel = fuelLog.filter(f => {
                 const d = new Date(f.date);
@@ -575,17 +482,10 @@
             const monthCost = thisMonthFuel.reduce((s,f) => s + (f.cost||0), 0);
             document.getElementById('monthFuelCost').textContent = monthCost > 0 ? monthCost.toLocaleString() + '원' : '--';
             document.getElementById('totalFuelCount').textContent = fuelLog.length + '회';
-
-            if (sorted.length === 0) {
-                emptyEl.classList.remove('hidden');
-                return;
-            }
+            if (sorted.length === 0) { emptyEl.classList.remove('hidden'); return; }
             emptyEl.classList.add('hidden');
-
-            sorted.forEach((entry, i) => {
-                const effBadge = entry.efficiency > 0
-                    ? `<span class="text-xs font-black text-indigo-600">${entry.efficiency.toFixed(1)} km/L</span>`
-                    : '';
+            sorted.forEach((entry) => {
+                const effBadge = entry.efficiency > 0 ? `<span class="text-xs font-black text-indigo-600">${entry.efficiency.toFixed(1)} km/L</span>` : '';
                 listEl.innerHTML += `
                     <div class="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100">
                         <div class="flex justify-between items-start">
@@ -603,14 +503,9 @@
             });
         }
 
-        // ══════════════════════════════════════════════
-        // 통계 탭 렌더
-        // ══════════════════════════════════════════════
         function renderStats() {
             const now = new Date();
             const thisYear = now.getFullYear();
-
-            // 올해 비용
             let maintCost = 0;
             const maintHistList = [];
             myData.forEach(item => {
@@ -621,55 +516,29 @@
                     }
                 });
             });
-
             const yearFuel = fuelLog.filter(f => new Date(f.date).getFullYear() === thisYear);
             const fuelCost = yearFuel.reduce((s,f) => s + (f.cost||0), 0);
-
             document.getElementById('statMaintCost').textContent = maintCost.toLocaleString() + '원';
             document.getElementById('statFuelCost').textContent = fuelCost.toLocaleString() + '원';
             document.getElementById('statTotalCost').textContent = (maintCost + fuelCost).toLocaleString() + '원';
-
-            // 2-1. 누적 km당 유지비 계산
             let totalAllTimeCost = 0;
             let allKms = [];
-            
-            myData.forEach(item => {
-                (item.history || []).forEach(h => {
-                    if (h.cost) totalAllTimeCost += Number(h.cost);
-                    if (h.km && Number(h.km) > 0) allKms.push(Number(h.km));
-                });
-            });
-            fuelLog.forEach(f => {
-                if (f.cost) totalAllTimeCost += Number(f.cost);
-                if (f.km && Number(f.km) > 0) allKms.push(Number(f.km));
-            });
-
+            myData.forEach(item => { (item.history || []).forEach(h => { if (h.cost) totalAllTimeCost += Number(h.cost); if (h.km && Number(h.km) > 0) allKms.push(Number(h.km)); }); });
+            fuelLog.forEach(f => { if (f.cost) totalAllTimeCost += Number(f.cost); if (f.km && Number(f.km) > 0) allKms.push(Number(f.km)); });
             const currKmVal = Number(document.getElementById('currKm').value) || 0;
             let minKm = currKmVal;
-            if (allKms.length > 0) {
-                minKm = Math.min(...allKms);
-            }
-            
+            if (allKms.length > 0) minKm = Math.min(...allKms);
             const distanceDiff = currKmVal - minKm;
             const costPerKm = distanceDiff > 0 ? Math.round(totalAllTimeCost / distanceDiff) : 0;
             document.getElementById('statCostPerKm').textContent = costPerKm.toLocaleString() + '원';
-
-            // 2-2. 최근 5회 연비 추이 막대 그래프
             const effEl = document.getElementById('effChart');
             effEl.innerHTML = '';
-            const recentEffs = [...fuelLog]
-                .filter(f => f.efficiency > 0)
-                .sort((a, b) => new Date(b.date) - new Date(a.date))
-                .slice(0, 5)
-                .reverse(); // 과거부터 최근순 정렬
-
-            if (recentEffs.length === 0) {
-                effEl.innerHTML = '<p class="text-center text-slate-400 text-xs py-3">연비 기록이 없어요</p>';
-            } else {
+            const recentEffs = [...fuelLog].filter(f => f.efficiency > 0).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5).reverse();
+            if (recentEffs.length === 0) effEl.innerHTML = '<p class="text-center text-slate-400 text-xs py-3">연비 기록이 없어요</p>'; else {
                 const maxEff = Math.max(...recentEffs.map(f => f.efficiency));
                 recentEffs.forEach(f => {
                     const pct = Math.round((f.efficiency / maxEff) * 100);
-                    const dateStr = f.date.substring(5).replace('-', '.'); // yyyy-mm-dd -> mm.dd
+                    const dateStr = f.date.substring(5).replace('-', '.');
                     effEl.innerHTML += `
                         <div class="flex items-center gap-2">
                             <span class="text-[10px] font-bold text-slate-400 w-7">${dateStr}</span>
@@ -680,16 +549,11 @@
                         </div>`;
                 });
             }
-
-            // 월별 주유비
             const monthlyEl = document.getElementById('monthlyFuelChart');
             const monthMap = {};
             fuelLog.forEach(f => {
                 const d = new Date(f.date);
-                if (d.getFullYear() === thisYear) {
-                    const key = d.getMonth() + 1;
-                    monthMap[key] = (monthMap[key] || 0) + (f.cost || 0);
-                }
+                if (d.getFullYear() === thisYear) { const key = d.getMonth() + 1; monthMap[key] = (monthMap[key] || 0) + (f.cost || 0); }
             });
             const maxVal = Math.max(...Object.values(monthMap), 1);
             const monthNames = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
@@ -706,17 +570,11 @@
                         <span class="text-[10px] font-bold text-slate-600 w-16 text-right">${val > 0 ? val.toLocaleString()+'원' : '-'}</span>
                     </div>`;
             }
-            if (Object.keys(monthMap).length === 0) {
-                monthlyEl.innerHTML = '<p class="text-center text-slate-400 text-xs py-3">주유 기록이 없어요</p>';
-            }
-
-            // 정비 이력
+            if (Object.keys(monthMap).length === 0) monthlyEl.innerHTML = '<p class="text-center text-slate-400 text-xs py-3">주유 기록이 없어요</p>';
             const histEl = document.getElementById('maintHistory');
             const emptyEl = document.getElementById('maintHistoryEmpty');
             histEl.innerHTML = '';
-            if (maintHistList.length === 0) {
-                emptyEl.classList.remove('hidden');
-            } else {
+            if (maintHistList.length === 0) emptyEl.classList.remove('hidden'); else {
                 emptyEl.classList.add('hidden');
                 maintHistList.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(h => {
                     histEl.innerHTML += `
@@ -734,145 +592,24 @@
             }
         }
 
-        // ══════════════════════════════════════════════
-        // 바텀시트 제어 (3. 주유 탭 입력 자동화 포함)
-        // ══════════════════════════════════════════════
-        function openSheet() {
-            const sheet = currentTab === 'fuel' ? 'sheetFuel' : 'sheetMaint';
-            
-            // 주유 탭에서 바텀시트를 열 때 현재 주행거리를 자동으로 입력
-            if (currentTab === 'fuel') {
-                document.getElementById('fuelKm').value = document.getElementById('currKm').value;
-            }
-
-            document.getElementById(sheet).classList.add('active');
-            document.getElementById('overlay').classList.add('active');
-        }
-
-        function closeSheet() {
-            ['sheetMaint','sheetFuel'].forEach(id => {
-                document.getElementById(id).classList.remove('active');
-            });
-            document.getElementById('overlay').classList.remove('active');
-        }
-
-        function quickEdit(id) {
-            document.getElementById('inputItem').value = id;
-            
-            const item = myData.find(d => d.id == id);
-            const delBtn = document.getElementById('deleteMaintBtn');
-            // 기록이 하나라도 있으면 삭제 버튼 표시
-            if (item && item.history && item.history.length > 0) {
-                delBtn.classList.remove('hidden');
-            } else {
-                delBtn.classList.add('hidden');
-            }
-
-            document.getElementById('sheetMaint').classList.add('active');
-            document.getElementById('overlay').classList.add('active');
-        }
-
-        async function deleteLastMaint() {
-            const id = document.getElementById('inputItem').value;
-            const idx = myData.findIndex(d => d.id == id);
-            
-            if (!myData[idx].history || myData[idx].history.length === 0) return;
-            if (!confirm(`'${myData[idx].name}'의 가장 최근 기록을 정말 삭제하시겠습니까?`)) return;
-
-            const btn = document.getElementById('deleteMaintBtn');
-            btn.textContent = '삭제 중...'; btn.disabled = true;
-
-            // 1. 이력에서 맨 마지막 기록 빼기
-            myData[idx].history.pop();
-
-            // 2. 남은 이력이 있다면 그 정보로 롤백, 없으면 기본값으로 롤백
-            if (myData[idx].history.length > 0) {
-                const prev = myData[idx].history[myData[idx].history.length - 1];
-                myData[idx].lastKm = prev.km;
-                myData[idx].lastDate = prev.date;
-            } else {
-                const defItem = defaultData.find(d => d.id == id);
-                myData[idx].lastKm = defItem ? defItem.lastKm : 0;
-                myData[idx].lastDate = defItem ? defItem.lastDate : "2023-05-09";
-            }
-
-            renderMaint();
-            closeSheet();
-
-            // 3. 구글 시트에 변경사항 저장
-            await saveToCloud();
-            btn.textContent = '🗑️ 최근 기록 삭제'; btn.disabled = false;
-        }
-        
-        // ══════════════════════════════════════════════
-        // 정비 저장
-        // ══════════════════════════════════════════════
-        async function saveMaint() {
-            const id   = document.getElementById('inputItem').value;
-            const km   = document.getElementById('inputKm').value;
-            const cost = document.getElementById('inputCost').value;
-            const memo = document.getElementById('inputMemo').value;
-            if (!km) return alert("주행거리를 입력하세요!");
-
-            const btn = document.getElementById('saveMaintBtn');
-            btn.textContent = '저장 중...'; btn.disabled = true;
-
-            const idx = myData.findIndex(d => d.id == id);
-            const today = new Date().toISOString().split('T')[0];
-            myData[idx].lastKm   = Number(km);
-            myData[idx].lastDate = today;
-
-            if (!myData[idx].history) myData[idx].history = [];
-            myData[idx].history.push({ date: today, km: Number(km), cost: cost ? Number(cost) : null, memo: memo || "" });
-
-            renderMaint();
-            closeSheet();
-            document.getElementById('inputKm').value = '';
-            document.getElementById('inputCost').value = '';
-            document.getElementById('inputMemo').value = '';
-
-            await saveToCloud({ name: myData[idx].name, lastKm: Number(km), cost: cost || null, memo: memo || "" });
-            btn.textContent = '저장하기'; btn.disabled = false;
-        }
-
-        // ══════════════════════════════════════════════
-        // 주유 저장
-        // ══════════════════════════════════════════════
         async function saveFuel() {
-            const km     = document.getElementById('fuelKm').value;
+            const km = document.getElementById('fuelKm').value;
             const liters = document.getElementById('fuelLiters').value;
-            const cost   = document.getElementById('fuelCost').value;
-            const memo   = document.getElementById('fuelMemo').value;
+            const cost = document.getElementById('fuelCost').value;
+            const memo = document.getElementById('fuelMemo').value;
             if (!km || !liters) return alert("주행거리와 주유량을 입력하세요!");
-
             const btn = document.getElementById('saveFuelBtn');
             btn.textContent = '저장 중...'; btn.disabled = true;
-
             let efficiency = 0;
             if (fuelLog.length > 0) {
                 const prev = [...fuelLog].sort((a,b) => b.km - a.km)[0];
-                if (prev && Number(km) > prev.km) {
-                    efficiency = (Number(km) - prev.km) / Number(liters);
-                }
+                if (prev && Number(km) > prev.km) efficiency = (Number(km) - prev.km) / Number(liters);
             }
-
-            const entry = {
-                id: Date.now(),
-                date: new Date().toISOString().split('T')[0],
-                km: Number(km),
-                liters: Number(liters),
-                cost: cost ? Number(cost) : null,
-                memo: memo || "",
-                efficiency: Math.round(efficiency * 10) / 10
-            };
+            const entry = { id: Date.now(), date: new Date().toISOString().split('T')[0], km: Number(km), liters: Number(liters), cost: cost ? Number(cost) : null, memo: memo || "", efficiency: Math.round(efficiency * 10) / 10 };
             fuelLog.push(entry);
-
             document.getElementById('currKm').value = Number(km);
-
-            renderFuel();
-            closeSheet();
+            renderFuel(); closeSheet();
             ['fuelKm','fuelLiters','fuelCost','fuelMemo'].forEach(id => document.getElementById(id).value = '');
-
             await saveToCloud(null);
             btn.textContent = '저장하기'; btn.disabled = false;
         }
@@ -883,9 +620,6 @@
             kmDebounceTimer = setTimeout(() => saveToCloud(), 1500);
         }
 
-        // ══════════════════════════════════════════════
-        // 앱 시작
-        // ══════════════════════════════════════════════
         loadFromCloud();
     </script>
 </body>
