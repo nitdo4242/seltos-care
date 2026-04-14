@@ -227,12 +227,13 @@
             { id: 0, name: "엔진오일 세트",   icon: "🛢️", kmInt: 10000,  monthInt: 12, lastKm: 35189, lastDate: "2025-11-20", history: [] },
             { id: 5, name: "타이어 위치교환",  icon: "🛞", kmInt: 10000,  monthInt: 12, lastKm: 27604, lastDate: "2025-05-17", history: [] },
             { id: 1, name: "브레이크 오일",    icon: "🧪", kmInt: 40000,  monthInt: 24, lastKm: 0,     lastDate: "2023-05-09", history: [] },
-            { id: 2, name: "브레이크 패드",    icon: "🛑", kmInt: 50000,  monthInt: 48, lastKm: 0,     lastDate: "2023-05-09", history: [] },
+            { id: 2, name: "브레이크 패드",    icon: "🛑", kmInt: 60000,  monthInt: 48, lastKm: 0,     lastDate: "2023-05-09", history: [] },
             { id: 8, name: "점화플러그 세트",  icon: "⚡", kmInt: 75000,  monthInt: 72, lastKm: 0,     lastDate: "2023-05-09", history: [] },
             { id: 7, name: "미션 오일",        icon: "⚙️", kmInt: 90000,  monthInt: 60, lastKm: 0,     lastDate: "2023-05-09", history: [] },
             { id: 6, name: "배터리",           icon: "🔋", kmInt: 999999, monthInt: 48, lastKm: 0,     lastDate: "2023-05-09", history: [] },
             { id: 10, name: "자동차 정기검사", icon: "📋", kmInt: 999999, monthInt: 48, lastKm: 0,     lastDate: "2023-05-09", history: [] },
-            { id: 11, name: "자동차 보험 갱신", icon: "🛡️", kmInt: 999999, monthInt: 12, lastKm: 0,     lastDate: "2025-05-11", history: [] }
+            { id: 11, name: "자동차 보험 갱신", icon: "🛡️", kmInt: 999999, monthInt: 12, lastKm: 0,     lastDate: "2025-05-11", history: [] },
+            { id: 12, name: "기타 정비",       icon: "🛠️", kmInt: 999999, monthInt: 999, lastKm: 0,    lastDate: "2023-05-09", history: [] }
         ];
 
         let myData = [];
@@ -333,6 +334,7 @@
             isSyncing = false;
         }
 
+        // 🌟 정렬 로직이 업데이트된 renderMaint 함수
         function renderMaint() {
             document.getElementById('dateDisplay').innerText = new Date().toISOString().split('T')[0];
             const currKm = Number(document.getElementById('currKm').value);
@@ -342,11 +344,17 @@
             listEl.innerHTML = '';
             selectEl.innerHTML = '';
 
-            myData.forEach(item => {
+            // 🛠️ 주행거리 남은 순서대로 정렬 (오름차순)
+            const sortedData = [...myData].sort((a, b) => {
+                const remainA = (a.lastKm + a.kmInt) - currKm;
+                const remainB = (b.lastKm + b.kmInt) - currKm;
+                return remainA - remainB;
+            });
+
+            sortedData.forEach(item => {
                 let calcMonthInt = item.monthInt;
                 if (item.id === 10 && item.history && item.history.length > 0) calcMonthInt = 24; 
 
-                // 모바일 호환성을 위해 하이픈(-)을 슬래시(/)로 변환
                 const lastDateStr = item.lastDate.replace(/-/g, "/");
                 const lastDateObj = new Date(lastDateStr);
                 const nextDate = new Date(new Date(lastDateStr).setMonth(lastDateObj.getMonth() + calcMonthInt));
@@ -354,7 +362,7 @@
                 const remainKm = (item.lastKm + item.kmInt) - currKm;
                 const remainDays = Math.ceil((nextDate.getTime() - currDate.getTime()) / 86400000);
                 
-                const isOver = (item.id === 10 || item.id === 11) ? remainDays <= 0 : (remainKm <= 0 || remainDays <= 0);
+                const isOver = (item.id === 10 || item.id === 11 || item.id === 12) ? remainDays <= 0 : (remainKm <= 0 || remainDays <= 0);
                 
                 const lastHistory = item.history && item.history.length > 0 ? item.history[item.history.length - 1] : null;
                 const costBadge = lastHistory && lastHistory.cost ? `<span class="text-[9px] font-bold text-slate-400">${Number(lastHistory.cost).toLocaleString()}원</span>` : '';
@@ -366,6 +374,8 @@
                     const m = String(nextDate.getMonth() + 1).padStart(2, '0');
                     const d = String(nextDate.getDate()).padStart(2, '0');
                     subText = `<span class="${isOver ? 'text-red-500' : 'text-indigo-500'} font-bold">~${y}.${m}.${d}까지</span>`;
+                } else if (item.id === 12) {
+                    subText = `<span class="text-slate-400 font-bold uppercase">✓ RECORD</span>`;
                 } else {
                     subText = `<span class="${isOver ? 'text-red-500' : 'text-slate-400'} font-bold uppercase">${isOver ? '🚨 Service Due' : '✓ OK'}</span>`;
                 }
@@ -432,7 +442,7 @@
             const cost = document.getElementById('inputCost').value;
             const memo = document.getElementById('inputMemo').value;
             if (!dateVal) return alert("날짜를 입력하세요!");
-            if (!km && id != 10 && id != 11) return alert("주행거리를 입력하세요!"); 
+            if (!km && id != 10 && id != 11 && id != 12) return alert("주행거리를 입력하세요!"); 
             const btn = document.getElementById('saveMaintBtn');
             btn.textContent = '저장 중...'; btn.disabled = true;
             const idx = myData.findIndex(d => d.id == id);
