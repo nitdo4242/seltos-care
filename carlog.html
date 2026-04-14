@@ -221,6 +221,7 @@
     <script>
         const GAS_URL = 'https://script.google.com/macros/s/AKfycbyxizxTU-tZM2o79HGiK1M_rlfTZgkwcZ_xkTorwo8w_pB8eoJdoNKLRiFZwokRuooecg/exec';
 
+        // 🛠️ 기준 데이터 정의 (Brake Pad 60000 적용)
         const defaultData = [
             { id: 3, name: "에어컨 필터",      icon: "🍃", kmInt: 10000,  monthInt: 6,  lastKm: 39651, lastDate: "2026-03-26", history: [] },
             { id: 4, name: "와이퍼 블레이드",  icon: "🧹", kmInt: 10000,  monthInt: 6,  lastKm: 35355, lastDate: "2025-11-26", history: [] },
@@ -279,13 +280,28 @@
             try {
                 const res = await fetch(GAS_URL + '?action=get');
                 const json = await res.json();
+                
                 if (json.data && Array.isArray(json.data) && json.data.length > 0) {
                     myData = json.data.map(d => ({ history: [], ...d }));
                     if (json.currKm) document.getElementById('currKm').value = json.currKm;
+
+                    // 🛠️ 핵심 로직: 저장된 데이터가 있더라도 '정비 기준(kmInt)' 등은 최신 코드 설정으로 강제 업데이트
+                    myData.forEach(item => {
+                        const standard = defaultData.find(s => s.id === item.id);
+                        if (standard) {
+                            item.kmInt = standard.kmInt;
+                            item.monthInt = standard.monthInt;
+                            item.name = standard.name;
+                            item.icon = standard.icon;
+                        }
+                    });
                 } else {
                     myData = JSON.parse(JSON.stringify(defaultData));
                 }
+
                 fuelLog = (json.fuelLog && Array.isArray(json.fuelLog)) ? json.fuelLog : [];
+                
+                // 새로운 항목(기타 정비 등) 추가 로직
                 const existingIds = myData.map(item => item.id);
                 let hasNewItem = false;
                 defaultData.forEach(defItem => {
@@ -294,18 +310,15 @@
                         hasNewItem = true;
                     }
                 });
+
                 localStorage.setItem('seltosDataV5', JSON.stringify(myData));
                 localStorage.setItem('seltosKm', document.getElementById('currKm').value);
                 localStorage.setItem('seltosFL', JSON.stringify(fuelLog));
+                
                 if (hasNewItem || !json.data) saveToCloud(); else setSyncStatus('ok');
             } catch(e) {
+                console.error("데이터 로드 실패:", e);
                 myData = JSON.parse(localStorage.getItem('seltosDataV5') || 'null') || JSON.parse(JSON.stringify(defaultData));
-                myData = myData.map(d => ({ history: [], ...d }));
-                fuelLog = JSON.parse(localStorage.getItem('seltosFL') || '[]');
-                const km = localStorage.getItem('seltosKm');
-                if (km) document.getElementById('currKm').value = km;
-                const existingIds = myData.map(item => item.id);
-                defaultData.forEach(defItem => { if (!existingIds.includes(defItem.id)) myData.push(JSON.parse(JSON.stringify(defItem))); });
                 setSyncStatus('error');
             }
             document.getElementById('loadingScreen').classList.add('hidden');
@@ -334,7 +347,6 @@
             isSyncing = false;
         }
 
-        // 🌟 정렬 로직이 업데이트된 renderMaint 함수
         function renderMaint() {
             document.getElementById('dateDisplay').innerText = new Date().toISOString().split('T')[0];
             const currKm = Number(document.getElementById('currKm').value);
@@ -344,7 +356,7 @@
             listEl.innerHTML = '';
             selectEl.innerHTML = '';
 
-            // 🛠️ 주행거리 남은 순서대로 정렬 (오름차순)
+            // 🛠️ 정렬: 교체 시점이 임박한 순서 (remainKm 오름차순)
             const sortedData = [...myData].sort((a, b) => {
                 const remainA = (a.lastKm + a.kmInt) - currKm;
                 const remainB = (b.lastKm + b.kmInt) - currKm;
