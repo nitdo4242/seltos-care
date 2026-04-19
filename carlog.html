@@ -64,6 +64,7 @@
     </div>
 
     <div id="tab-content-maint" class="tab-content hidden max-w-md mx-auto p-4 space-y-3 pb-32">
+        <div id="maintDueBanner" class="hidden"></div>
         <div id="maintList"></div>
     </div>
 
@@ -169,9 +170,14 @@
                 <input type="text" id="inputMemo" placeholder="예: 쿠팡 오일 직구"
                     class="w-full bg-slate-100 border-none p-4 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-400">
             </div>
+            <div id="maintHistoryList"></div>
             <button id="saveMaintBtn" onclick="saveMaint()"
                 class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-lg shadow-lg shadow-indigo-100 active:scale-95 transition-all">
                 저장하기
+            </button>
+            <button id="cancelEditMaintBtn" onclick="cancelEditMaint()"
+                class="w-full bg-slate-200 text-slate-500 py-3 mt-3 rounded-2xl font-bold text-sm active:scale-95 transition-all hidden">
+                수정 취소
             </button>
             <button id="deleteMaintBtn" onclick="deleteLastMaint()"
                 class="w-full bg-slate-200 text-slate-500 py-3 mt-3 rounded-2xl font-bold text-sm active:scale-95 transition-all hidden">
@@ -215,6 +221,10 @@
                 class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-lg shadow-lg shadow-indigo-100 active:scale-95 transition-all">
                 저장하기
             </button>
+            <button id="cancelEditFuelBtn" onclick="cancelEditFuel()"
+                class="w-full bg-slate-200 text-slate-500 py-3 mt-3 rounded-2xl font-bold text-sm active:scale-95 transition-all hidden">
+                수정 취소
+            </button>
         </div>
     </div>
 
@@ -238,10 +248,20 @@
         ];
 
         let myData = [];
-        let fuelLog = []; 
+        let fuelLog = [];
         let currentTab = 'maint';
         let kmDebounceTimer = null;
         let isSyncing = false;
+        let pendingSave = false;
+        let editingFuelId = null;
+        let editingMaintHistIdx = null;
+        let editingMaintItemId = null;
+
+        // 날짜 문자열을 항상 로컬 타임존으로 파싱 (ISO "YYYY-MM-DD"는 UTC로 해석되어 한국 시간으로 하루 차이가 날 수 있음)
+        function parseLocalDate(str) {
+            if (!str) return new Date();
+            return new Date(String(str).replace(/-/g, "/"));
+        }
 
         function switchTab(tab) {
             currentTab = tab;
@@ -319,6 +339,9 @@
             } catch(e) {
                 console.error("데이터 로드 실패:", e);
                 myData = JSON.parse(localStorage.getItem('seltosDataV5') || 'null') || JSON.parse(JSON.stringify(defaultData));
+                fuelLog = JSON.parse(localStorage.getItem('seltosFL') || '[]');
+                const savedKm = localStorage.getItem('seltosKm');
+                if (savedKm) document.getElementById('currKm').value = savedKm;
                 setSyncStatus('error');
             }
             document.getElementById('loadingScreen').classList.add('hidden');
@@ -329,7 +352,11 @@
         }
 
         async function saveToCloud(changedItem = null) {
-            if (isSyncing) return;
+            // 동기화 중이면 대기 플래그만 세우고 반환. 끝난 뒤 한 번 더 저장해서 최신 상태를 반영.
+            if (isSyncing) {
+                pendingSave = true;
+                return;
+            }
             isSyncing = true;
             setSyncStatus('saving');
             const currKm = Number(document.getElementById('currKm').value);
@@ -345,6 +372,10 @@
                 setSyncStatus('ok');
             } catch(e) { setSyncStatus('error'); }
             isSyncing = false;
+            if (pendingSave) {
+                pendingSave = false;
+                saveToCloud();
+            }
         }
 
         function renderMaint() {
@@ -355,6 +386,7 @@
             const selectEl = document.getElementById('inputItem');
             listEl.innerHTML = '';
             selectEl.innerHTML = '';
+            const dueItems = [];
 
             // 🛠️ 정렬: 교체 시점이 임박한 순서 (remainKm 오름차순)
             const sortedData = [...myData].sort((a, b) => {
@@ -365,17 +397,17 @@
 
             sortedData.forEach(item => {
                 let calcMonthInt = item.monthInt;
-                if (item.id === 10 && item.history && item.history.length > 0) calcMonthInt = 24; 
+                if (item.id === 10 && item.history && item.history.length > 0) calcMonthInt = 24;
 
-                const lastDateStr = item.lastDate.replace(/-/g, "/");
-                const lastDateObj = new Date(lastDateStr);
-                const nextDate = new Date(new Date(lastDateStr).setMonth(lastDateObj.getMonth() + calcMonthInt));
+                const lastDateObj = parseLocalDate(item.lastDate);
+                const nextDate = new Date(new Date(lastDateObj).setMonth(lastDateObj.getMonth() + calcMonthInt));
                 
                 const remainKm = (item.lastKm + item.kmInt) - currKm;
                 const remainDays = Math.ceil((nextDate.getTime() - currDate.getTime()) / 86400000);
                 
                 const isOver = (item.id === 10 || item.id === 11 || item.id === 12) ? remainDays <= 0 : (remainKm <= 0 || remainDays <= 0);
-                
+                if (isOver && item.id !== 12) dueItems.push({ icon: item.icon, name: item.name, remainKm, remainDays, id: item.id });
+
                 const lastHistory = item.history && item.history.length > 0 ? item.history[item.history.length - 1] : null;
                 const costBadge = lastHistory && lastHistory.cost ? `<span class="text-[9px] font-bold text-slate-400">${Number(lastHistory.cost).toLocaleString()}원</span>` : '';
                 const memoBadge = lastHistory && lastHistory.memo ? `<span class="text-[9px] text-slate-300"> · ${lastHistory.memo}</span>` : '';
@@ -418,15 +450,49 @@
                     </div>`;
                 selectEl.innerHTML += `<option value="${item.id}">${item.name}</option>`;
             });
+
+            // 🔔 알림 배너: 교체/갱신 기한을 넘긴 항목 요약
+            const bannerEl = document.getElementById('maintDueBanner');
+            if (dueItems.length > 0) {
+                const chips = dueItems.map(d => `<span class="text-[10px] bg-white/25 rounded-full px-2 py-0.5 font-bold">${d.icon} ${d.name}</span>`).join(' ');
+                bannerEl.className = 'bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-[2rem] p-5 shadow-lg shadow-red-100 mb-3';
+                bannerEl.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-[10px] font-bold opacity-80 uppercase">🔔 Service Due</p>
+                            <p class="text-lg font-black mt-0.5">${dueItems.length}개 항목이 기한을 넘겼어요</p>
+                        </div>
+                    </div>
+                    <div class="mt-3 flex flex-wrap gap-1">${chips}</div>`;
+            } else {
+                bannerEl.className = 'hidden';
+                bannerEl.innerHTML = '';
+            }
         }
 
         function openSheet() {
             const sheet = currentTab === 'fuel' ? 'sheetFuel' : 'sheetMaint';
+            // 편집 상태/이전 입력값 초기화
+            editingFuelId = null;
+            editingMaintHistIdx = null;
+            editingMaintItemId = null;
             if (currentTab === 'fuel') {
                 document.getElementById('fuelDate').value = new Date().toISOString().split('T')[0];
                 document.getElementById('fuelKm').value = document.getElementById('currKm').value;
+                document.getElementById('fuelLiters').value = '';
+                document.getElementById('fuelCost').value = '';
+                document.getElementById('fuelMemo').value = '';
+                document.querySelector('#sheetFuel h2').textContent = '주유 기록하기 ⛽';
+                document.getElementById('cancelEditFuelBtn').classList.add('hidden');
             } else {
                 document.getElementById('inputDate').value = new Date().toISOString().split('T')[0];
+                document.getElementById('inputKm').value = '';
+                document.getElementById('inputCost').value = '';
+                document.getElementById('inputMemo').value = '';
+                document.querySelector('#sheetMaint h2').textContent = '정비 기록하기 🔧';
+                document.getElementById('deleteMaintBtn').classList.add('hidden');
+                document.getElementById('cancelEditMaintBtn').classList.add('hidden');
+                document.getElementById('maintHistoryList').innerHTML = '';
             }
             document.getElementById(sheet).classList.add('active');
             document.getElementById('overlay').classList.add('active');
@@ -438,13 +504,74 @@
         }
 
         function quickEdit(id) {
+            // 새 기록 추가 모드로 시작 (이전 기록은 목록에서 개별 수정 가능)
+            editingFuelId = null;
+            editingMaintHistIdx = null;
+            editingMaintItemId = null;
+
             document.getElementById('inputItem').value = id;
             document.getElementById('inputDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('inputKm').value = '';
+            document.getElementById('inputCost').value = '';
+            document.getElementById('inputMemo').value = '';
+            document.querySelector('#sheetMaint h2').textContent = '정비 기록하기 🔧';
+            document.getElementById('cancelEditMaintBtn').classList.add('hidden');
+
             const item = myData.find(d => d.id == id);
             const delBtn = document.getElementById('deleteMaintBtn');
             if (item && item.history && item.history.length > 0) delBtn.classList.remove('hidden'); else delBtn.classList.add('hidden');
+
+            renderMaintHistoryList(id);
+
             document.getElementById('sheetMaint').classList.add('active');
             document.getElementById('overlay').classList.add('active');
+        }
+
+        function renderMaintHistoryList(id) {
+            const item = myData.find(d => d.id == id);
+            const listEl = document.getElementById('maintHistoryList');
+            if (!item || !item.history || item.history.length === 0) {
+                listEl.innerHTML = '';
+                return;
+            }
+            const sortedHist = item.history
+                .map((h, idx) => ({ ...h, _idx: idx }))
+                .sort((a, b) => parseLocalDate(b.date) - parseLocalDate(a.date));
+            const rows = sortedHist.slice(0, 5).map(h => `
+                <div class="flex items-center justify-between bg-slate-50 rounded-2xl p-3 mb-2">
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-black text-slate-700">${h.date}${h.km ? ' · ' + Number(h.km).toLocaleString() + 'km' : ''}</p>
+                        <p class="text-[10px] text-slate-500 truncate">${h.cost ? Number(h.cost).toLocaleString() + '원' : '-'}${h.memo ? ' · ' + h.memo : ''}</p>
+                    </div>
+                    <button onclick="editMaintHistory(${id}, ${h._idx})" class="text-[10px] font-bold text-indigo-600 px-3 py-1 bg-white rounded-lg ml-2">수정</button>
+                </div>`).join('');
+            const moreNote = item.history.length > 5 ? `<p class="text-[10px] text-slate-400 text-center pt-1">최근 5건만 표시</p>` : '';
+            listEl.innerHTML = `
+                <div class="text-xs font-bold text-slate-400 mt-4 mb-2 uppercase">이전 기록</div>
+                ${rows}${moreNote}`;
+        }
+
+        function editMaintHistory(itemId, histIdx) {
+            const item = myData.find(d => d.id == itemId);
+            if (!item || !item.history || !item.history[histIdx]) return;
+            const h = item.history[histIdx];
+            document.getElementById('inputItem').value = itemId;
+            document.getElementById('inputDate').value = h.date || '';
+            document.getElementById('inputKm').value = h.km || '';
+            document.getElementById('inputCost').value = h.cost || '';
+            document.getElementById('inputMemo').value = h.memo || '';
+            editingMaintHistIdx = histIdx;
+            editingMaintItemId = Number(itemId);
+            document.querySelector('#sheetMaint h2').textContent = '정비 기록 수정 🔧';
+            document.getElementById('cancelEditMaintBtn').classList.remove('hidden');
+            document.getElementById('deleteMaintBtn').classList.add('hidden');
+        }
+
+        function cancelEditMaint() {
+            editingMaintHistIdx = null;
+            editingMaintItemId = null;
+            const id = document.getElementById('inputItem').value;
+            quickEdit(id);
         }
 
         async function saveMaint() {
@@ -454,14 +581,31 @@
             const cost = document.getElementById('inputCost').value;
             const memo = document.getElementById('inputMemo').value;
             if (!dateVal) return alert("날짜를 입력하세요!");
-            if (!km && id != 10 && id != 11 && id != 12) return alert("주행거리를 입력하세요!"); 
+            if (!km && id != 10 && id != 11 && id != 12) return alert("주행거리를 입력하세요!");
             const btn = document.getElementById('saveMaintBtn');
             btn.textContent = '저장 중...'; btn.disabled = true;
             const idx = myData.findIndex(d => d.id == id);
-            myData[idx].lastKm = Number(km) || 0;
-            myData[idx].lastDate = dateVal;
             if (!myData[idx].history) myData[idx].history = [];
-            myData[idx].history.push({ date: dateVal, km: Number(km) || 0, cost: cost ? Number(cost) : null, memo: memo || "" });
+            const record = { date: dateVal, km: Number(km) || 0, cost: cost ? Number(cost) : null, memo: memo || "" };
+
+            if (editingMaintHistIdx !== null && editingMaintItemId == id) {
+                // 기존 기록 수정
+                myData[idx].history[editingMaintHistIdx] = record;
+            } else {
+                // 새 기록 추가
+                myData[idx].history.push(record);
+            }
+
+            // lastKm / lastDate는 히스토리 중 가장 최근 날짜 기준으로 재계산
+            if (myData[idx].history.length > 0) {
+                const latest = [...myData[idx].history].sort((a, b) => parseLocalDate(b.date) - parseLocalDate(a.date))[0];
+                myData[idx].lastKm = latest.km || 0;
+                myData[idx].lastDate = latest.date;
+            }
+
+            editingMaintHistIdx = null;
+            editingMaintItemId = null;
+
             renderMaint();
             closeSheet();
             document.getElementById('inputKm').value = '';
@@ -478,11 +622,16 @@
             if (!confirm(`'${myData[idx].name}'의 가장 최근 기록을 정말 삭제하시겠습니까?`)) return;
             const btn = document.getElementById('deleteMaintBtn');
             btn.textContent = '삭제 중...'; btn.disabled = true;
-            myData[idx].history.pop();
+            // 날짜 기준으로 가장 최근 기록을 삭제
+            const sortedWithIdx = myData[idx].history
+                .map((h, i) => ({ h, i }))
+                .sort((a, b) => parseLocalDate(b.h.date) - parseLocalDate(a.h.date));
+            const latestIdx = sortedWithIdx[0].i;
+            myData[idx].history.splice(latestIdx, 1);
             if (myData[idx].history.length > 0) {
-                const prev = myData[idx].history[myData[idx].history.length - 1];
-                myData[idx].lastKm = prev.km;
-                myData[idx].lastDate = prev.date;
+                const latest = [...myData[idx].history].sort((a, b) => parseLocalDate(b.date) - parseLocalDate(a.date))[0];
+                myData[idx].lastKm = latest.km || 0;
+                myData[idx].lastDate = latest.date;
             } else {
                 const defItem = defaultData.find(d => d.id == id);
                 myData[idx].lastKm = defItem ? defItem.lastKm : 0;
@@ -495,7 +644,7 @@
         }
 
         function renderFuel() {
-            const sorted = [...fuelLog].sort((a,b) => new Date(b.date) - new Date(a.date));
+            const sorted = [...fuelLog].sort((a,b) => parseLocalDate(b.date) - parseLocalDate(a.date));
             const listEl = document.getElementById('fuelList');
             const emptyEl = document.getElementById('fuelEmpty');
             listEl.innerHTML = '';
@@ -504,7 +653,7 @@
             document.getElementById('avgEfficiency').textContent = avgEff;
             const now = new Date();
             const thisMonthFuel = fuelLog.filter(f => {
-                const d = new Date(f.date);
+                const d = parseLocalDate(f.date);
                 return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
             });
             const monthCost = thisMonthFuel.reduce((s,f) => s + (f.cost||0), 0);
@@ -525,7 +674,10 @@
                             <div class="text-right">
                                 <p class="font-black text-slate-800 text-sm">${entry.cost ? entry.cost.toLocaleString() + '원' : '--'}</p>
                                 <div class="mt-0.5">${effBadge}</div>
-                                <div class="text-[10px] font-bold text-slate-400 underline decoration-red-200 cursor-pointer mt-1" onclick="deleteFuel(${entry.id})">삭제</div>
+                                <div class="flex gap-2 justify-end mt-1">
+                                    <span class="text-[10px] font-bold text-slate-400 underline decoration-indigo-200 cursor-pointer" onclick="editFuel(${entry.id})">수정</span>
+                                    <span class="text-[10px] font-bold text-slate-400 underline decoration-red-200 cursor-pointer" onclick="deleteFuel(${entry.id})">삭제</span>
+                                </div>
                             </div>
                         </div>
                     </div>`;
@@ -539,13 +691,13 @@
             const maintHistList = [];
             myData.forEach(item => {
                 (item.history || []).forEach(h => {
-                    if (new Date(h.date).getFullYear() === thisYear && h.cost) {
+                    if (parseLocalDate(h.date).getFullYear() === thisYear && h.cost) {
                         maintCost += Number(h.cost);
                         maintHistList.push({ name: item.name, icon: item.icon, ...h });
                     }
                 });
             });
-            const yearFuel = fuelLog.filter(f => new Date(f.date).getFullYear() === thisYear);
+            const yearFuel = fuelLog.filter(f => parseLocalDate(f.date).getFullYear() === thisYear);
             const fuelCost = yearFuel.reduce((s,f) => s + (f.cost||0), 0);
             document.getElementById('statMaintCost').textContent = maintCost.toLocaleString() + '원';
             document.getElementById('statFuelCost').textContent = fuelCost.toLocaleString() + '원';
@@ -562,7 +714,7 @@
             document.getElementById('statCostPerKm').textContent = costPerKm.toLocaleString() + '원';
             const effEl = document.getElementById('effChart');
             effEl.innerHTML = '';
-            const recentEffs = [...fuelLog].filter(f => f.efficiency > 0).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5).reverse();
+            const recentEffs = [...fuelLog].filter(f => f.efficiency > 0).sort((a, b) => parseLocalDate(b.date) - parseLocalDate(a.date)).slice(0, 5).reverse();
             if (recentEffs.length === 0) effEl.innerHTML = '<p class="text-center text-slate-400 text-xs py-3">연비 기록이 없어요</p>'; else {
                 const maxEff = Math.max(...recentEffs.map(f => f.efficiency));
                 recentEffs.forEach(f => {
@@ -581,7 +733,7 @@
             const monthlyEl = document.getElementById('monthlyFuelChart');
             const monthMap = {};
             fuelLog.forEach(f => {
-                const d = new Date(f.date);
+                const d = parseLocalDate(f.date);
                 if (d.getFullYear() === thisYear) { const key = d.getMonth() + 1; monthMap[key] = (monthMap[key] || 0) + (f.cost || 0); }
             });
             const maxVal = Math.max(...Object.values(monthMap), 1);
@@ -605,7 +757,7 @@
             histEl.innerHTML = '';
             if (maintHistList.length === 0) emptyEl.classList.remove('hidden'); else {
                 emptyEl.classList.add('hidden');
-                maintHistList.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(h => {
+                maintHistList.sort((a,b) => parseLocalDate(b.date) - parseLocalDate(a.date)).forEach(h => {
                     histEl.innerHTML += `
                         <div class="flex justify-between items-center py-1.5 border-b border-slate-50 last:border-0">
                             <div class="flex items-center gap-2">
@@ -629,24 +781,79 @@
             if (!km || !liters) return alert("주행거리와 주유량을 입력하세요!");
             const btn = document.getElementById('saveFuelBtn');
             btn.textContent = '저장 중...'; btn.disabled = true;
-            let efficiency = 0;
-            if (fuelLog.length > 0) {
-                const prev = [...fuelLog].sort((a,b) => new Date(b.date) - new Date(a.date) || b.km - a.km)[0];
-                if (prev && Number(km) > prev.km) efficiency = (Number(km) - prev.km) / Number(liters);
-            }
             const fuelDateVal = document.getElementById('fuelDate').value || new Date().toISOString().split('T')[0];
-            const entry = { id: Date.now(), date: fuelDateVal, km: Number(km), liters: Number(liters), cost: cost ? Number(cost) : null, memo: memo || "", efficiency: Math.round(efficiency * 10) / 10 };
-            fuelLog.push(entry);
-            document.getElementById('currKm').value = Number(km);
+
+            if (editingFuelId !== null) {
+                // 기존 기록 수정
+                const idx = fuelLog.findIndex(f => f.id === editingFuelId);
+                if (idx >= 0) {
+                    fuelLog[idx] = {
+                        ...fuelLog[idx],
+                        date: fuelDateVal,
+                        km: Number(km),
+                        liters: Number(liters),
+                        cost: cost ? Number(cost) : null,
+                        memo: memo || ""
+                    };
+                }
+                editingFuelId = null;
+            } else {
+                // 새 기록 추가
+                const entry = { id: Date.now(), date: fuelDateVal, km: Number(km), liters: Number(liters), cost: cost ? Number(cost) : null, memo: memo || "", efficiency: 0 };
+                fuelLog.push(entry);
+                document.getElementById('currKm').value = Number(km);
+            }
+
+            // 연비는 항상 날짜+km 순으로 정렬한 뒤 전체 재계산
+            recomputeFuelEfficiencies();
+
             renderFuel(); closeSheet();
             ['fuelDate','fuelKm','fuelLiters','fuelCost','fuelMemo'].forEach(id => document.getElementById(id).value = '');
             await saveToCloud(null);
             btn.textContent = '저장하기'; btn.disabled = false;
         }
 
+        function recomputeFuelEfficiencies() {
+            // 날짜 오름차순, 같은 날이면 km 오름차순
+            const sorted = [...fuelLog].sort((a, b) => parseLocalDate(a.date) - parseLocalDate(b.date) || a.km - b.km);
+            sorted.forEach((entry, i) => {
+                if (i === 0) {
+                    entry.efficiency = 0;
+                } else {
+                    const prev = sorted[i - 1];
+                    if (entry.km > prev.km && entry.liters > 0) {
+                        entry.efficiency = Math.round((entry.km - prev.km) / entry.liters * 10) / 10;
+                    } else {
+                        entry.efficiency = 0;
+                    }
+                }
+            });
+        }
+
+        function editFuel(id) {
+            const entry = fuelLog.find(f => f.id === id);
+            if (!entry) return;
+            editingFuelId = id;
+            document.getElementById('fuelDate').value = entry.date || '';
+            document.getElementById('fuelKm').value = entry.km || '';
+            document.getElementById('fuelLiters').value = entry.liters || '';
+            document.getElementById('fuelCost').value = entry.cost || '';
+            document.getElementById('fuelMemo').value = entry.memo || '';
+            document.querySelector('#sheetFuel h2').textContent = '주유 기록 수정 ⛽';
+            document.getElementById('cancelEditFuelBtn').classList.remove('hidden');
+            document.getElementById('sheetFuel').classList.add('active');
+            document.getElementById('overlay').classList.add('active');
+        }
+
+        function cancelEditFuel() {
+            editingFuelId = null;
+            closeSheet();
+        }
+
         async function deleteFuel(id) {
             if (!confirm('이 주유 기록을 삭제하시겠습니까?')) return;
             fuelLog = fuelLog.filter(f => f.id !== id);
+            recomputeFuelEfficiencies();
             renderFuel();
             await saveToCloud();
         }
